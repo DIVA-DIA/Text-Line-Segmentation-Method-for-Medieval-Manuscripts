@@ -107,10 +107,10 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.layer5 = nn.ConvTranspose2d(512, 256, 5, stride=4, bias=False)
-        self.layer6 = nn.ConvTranspose2d(256, 128, 5, stride=4, bias=False)
+        self.layer5 = nn.ConvTranspose2d(512, 256, 5, stride=4)
+        self.layer6 = nn.ConvTranspose2d(256, 128, 5, stride=4)
         self.layer7 = nn.UpsamplingBilinear2d(size=(224,224))
-        self.layer8 = nn.Conv2d(128, 7, 1, stride=1, bias=False)
+        self.layer8 = nn.Conv2d(128, 7, 1, stride=1)
         self.layer9 = nn.Softmax2d()
 
         for m in self.modules():
@@ -154,7 +154,24 @@ class ResNet(nn.Module):
         x = self.layer8(x)
         x = self.layer9(x)
 
-        return x
+         return x
+
+    def load_pretrained_state_dict(self, state_dict):
+        own_state = self.state_dict()
+        for own, pt in zip(own_state.keys(), state_dict.keys()):
+            if own != 'conv1.weight':
+                try:
+                    if isinstance(state_dict[pt], nn.parameter.Parameter):
+                        state_dict[pt] = state_dict[pt].data
+                    own_state[own].copy_(state_dict[pt])
+                except:
+                    print('While copying the parameter named {}, whose dimensions in the model are'
+                          ' {} and whose dimensions in the checkpoint are {}, ...'.format(
+                        own, own_state[own].size(), state_dict[pt].size()))
+            else:
+                if isinstance(state_dict[pt], nn.parameter.Parameter):
+                    state_dict[pt] = state_dict[pt].data
+                own_state[own][:,:3,:,:].copy_(state_dict[pt])
 
 
 def resnet18(pretrained=False, **kwargs):
@@ -165,7 +182,7 @@ def resnet18(pretrained=False, **kwargs):
     """
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['resnet18']))
+        model.load_pretrained_state_dict(model_zoo.load_url(model_urls['resnet18']))
     return model
 
 
