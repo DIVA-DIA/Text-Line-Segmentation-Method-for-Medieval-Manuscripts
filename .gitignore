@@ -66,6 +66,9 @@ target/
 # Pycharm
 .idea
 
+# Mac
+.DS_Store
+
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
