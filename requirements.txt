@@ -1,3 +1,4 @@
+skimage
 click
 Sphinx
 coverage
