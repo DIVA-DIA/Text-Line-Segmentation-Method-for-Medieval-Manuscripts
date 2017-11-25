@@ -39,7 +39,7 @@ def process_gt(gt_img_path):
 
     # Find Border Pixels and set them to background
     locs = np.where(gt_img[:,:,2] == 128)
-    gt_img_proc[locs[0], locs[1]] = 0
+    gt_img[locs[0], locs[1]] = 1
 
     for gt_label, our_label in transform_pairs:
         locs = np.where(gt_img[:,:,0] == gt_label)
