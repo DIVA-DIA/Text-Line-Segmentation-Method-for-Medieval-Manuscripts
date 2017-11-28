@@ -200,6 +200,9 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
 
+    # Return the number of clusters
+    return len(clusters_lines)+1
+
 #######################################################################################################################
 
 
@@ -288,7 +291,8 @@ if __name__ == "__main__":
         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
         level=logging.INFO)
     logging.info('Printing activity to the console')
-    segment_textlines(input_loc='./../data/test1.png', output_loc="./../data/testfile.txt")
+    segment_textlines(input_loc='./../data/test4.png', output_loc="./../data/testfile.txt")
+    logging.info('Terminated')
 
     ################################################################################
     ################################################################################
