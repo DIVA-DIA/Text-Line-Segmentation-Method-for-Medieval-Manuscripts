@@ -7,7 +7,7 @@ import logging
 
 import cv2
 import numpy as np
-from XMLhandler import writePAGEfile
+from XMLhandler import writePAGEfile, read_max_textline_from_file
 from scipy.spatial import ConvexHull
 from skimage import measure
 from sklearn.cluster import DBSCAN
