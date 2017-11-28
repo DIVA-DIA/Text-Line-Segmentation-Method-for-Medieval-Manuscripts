@@ -1,3 +1,5 @@
+shapely
+shapely
 skimage
 click
 Sphinx

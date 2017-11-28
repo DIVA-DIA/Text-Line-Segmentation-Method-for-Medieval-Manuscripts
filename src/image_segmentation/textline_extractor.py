@@ -1,20 +1,16 @@
 """
 """
 
-import numpy as np
-import cv2
-
-from skimage import measure
-from sklearn.cluster import  MeanShift, estimate_bandwidth, DBSCAN
-
 # Utils
 import argparse
 import logging
-import os
 
+import cv2
+import numpy as np
+from XMLwriter import writePAGEfile
 from scipy.spatial import ConvexHull
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
+from skimage import measure
+from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 # Argument Parser
@@ -28,8 +24,10 @@ parser.add_argument('--segmented_image', help='path of the segmented image')
 # Parse
 args = parser.parse_args()
 
+
 #######################################################################################################################
-def main():
+
+def main(simplified=True):
     """
     This is the main routine where the magic happens
     :return:
@@ -46,7 +44,7 @@ def main():
     # Show the image to screen
     cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
     cv2.imshow('image', img)
-    #cv2.resizeWindow('image', 1200, 800)
+    cv2.resizeWindow('image', 1200, 800)
     cv2.moveWindow('image', 200, 100)
 
     #############################################
@@ -83,7 +81,7 @@ def main():
     # Draw centroids [NO_OUTLIERS]
     for i, c in enumerate(centroids):
         # On their location
-        cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))),radius=5,
+        cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
                    color=(0, 200, 0), thickness=10, lineType=1, shift=0)
         # On the side
         cv2.circle(img, tuple([25, np.round(c[0]).astype(np.int)]), radius=2,
@@ -119,31 +117,181 @@ def main():
             clusters_centroids[l].append(c[0])
 
     # Sort the bins according to the horizontal axis
-
     for i in range(0, len(clusters_centroids)):
         clusters_centroids[i] = np.asarray(clusters_centroids[i])
         clusters_centroids[i] = clusters_centroids[i][np.argsort(clusters_centroids[i][:, 1]), :]
 
-    # Connect the centroid inside each cluster by drawing a white line
-    tmp_img = prepare_image(cv2.imread('./../data/test2.png'))
-    for line in zip(clusters_centroids):
-        for i in range(0, len(line[0])-1):
-            # Draw the line between the centroids
-            cv2.line(img, tuple([np.round(line[0][i][1]).astype(np.int),
-                                 np.round(line[0][i][0]).astype(np.int)]),
-                        tuple([np.round(line[0][i + 1][1]).astype(np.int),
-                               np.round(line[0][i + 1][0]).astype(np.int)]),
-                     color=(255, 127, 0), thickness=4, lineType=8, shift=0)
-            # On their location
-            #cv2.circle(img, tuple([np.round(line[0][i][1]).astype(np.int),
-            #                     np.round(line[0][i][0]).astype(np.int)]), radius=10,
-            #           color=(255, 0, 127), thickness=10, lineType=1, shift=0)
+    # ******************************************* *******************************************
+    if simplified:
+        boxes = []
+        for line in clusters_centroids:
+            left = np.round(np.min(line[:, 1])).astype(np.int)
+            top = np.round(np.min(line[:, 0])).astype(np.int)
+            right = np.round(np.max(line[:, 1])).astype(np.int)
+            bottom = np.round(np.max(line[:, 0])).astype(np.int)
+            boxes.append("{},{} {},{} {},{} {},{}".format(top, left, top, right, bottom, left, bottom, right))
 
-    #############################################
-    # Compute tight polygon around all points in the CC for each bin
+        # Save bounding box for each row as PAGE file
+        writePAGEfile(textLines=boxes)
+    # ******************************************* *******************************************
+    else:
 
-    # Save polygons to file
 
+        # Create a working copy of the image to draw the CC convex hull & so
+        cc_img = np.zeros(img.shape[0:2])
+
+        # Connect the centroid inside each cluster by drawing a white line
+        for line in clusters_centroids:
+            for i in range(0, len(line) - 1):
+                # Draw the line between the centroids
+                cv2.line(img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
+                         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
+                         color=(255, 127, 0), thickness=5, lineType=8, shift=0)
+                # Draw it on the working copy
+                cv2.line(cc_img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
+                         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
+                         color=(255, 255, 255), thickness=5, lineType=8, shift=0)
+                # On their location
+                # cv2.circle(img, tuple([np.round(line[0][i][1]).astype(np.int),
+                #                     np.round(line[0][i][0]).astype(np.int)]), radius=10,
+                #           color=(255, 0, 127), thickness=10, lineType=1, shift=0)
+
+        #############################################
+        # Extract the contour of each CC
+        cc_polygons = []
+        l = 0
+        for line in clusters_centroids:
+            cc_polygons.append([])
+            for c in line:
+                cc = find_cc_from_centroid(c, cc_properties)
+                points = cc.coords[::3, 0:2]
+                hull = ConvexHull(points)
+                cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
+                # for v in hull.vertices:
+                #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
+                cv2.polylines(img, [points[hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
+                # Draw the convex hulls of each CC on the working copy
+                cv2.fillPoly(cc_img, [points[hull.vertices][:, [1, 0]]], color=(255, 255, 255))
+                #cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
+            l += 1
+
+        # TODO at some point it has to be implemented that BLUE CC, (too big, not the too small) has to be dealt with.
+        # TODO the plan is that if the part "invading" another ling DO NOT CROSS the bluish line connecting the centroid,
+        # TODO then the whole CC belongs to such line and we will convex_hull it. OTHERWISE we crop this component on the
+        # TODO median between the two lines (green line separating the clusters)
+
+        # Compute the big poligon matching all of them
+
+
+        #cv2.polylines(img, [boundary.hull.points[boundary.hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
+
+
+
+
+
+    # Print again
+    cv2.imshow('image', img)
+
+    # Hold on
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # Print workig copy
+    #cv2.imshow('image', cc_img)
+
+    # Hold on
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+
+#######################################################################################################################
+
+
+def prepare_image(img):
+    # img = img[:,:,1] #TODO make it select only the text pixels from SegImg
+    img[:, :, 0] = 0
+    img[:, :, 2] = 0
+    locations = np.where(img == 127)
+    img[:, :, 1] = 0
+    img[locations[0], locations[1]] = 255
+    return img
+
+
+def detect_outliers(centroids, area):
+    big_enough = area > 0.3 * np.mean(area)
+    small_enough = area < 2 * np.mean(area)
+    no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
+    no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
+    return no_outliers
+
+
+def cluster(img, centroids):
+    # Attempt clustering with DBSCAN
+    X = centroids[:, 0]
+    X = (X - np.min(X)) / (np.max(X) - np.min(X))
+    tmp = np.zeros((X.shape[0], 2))
+    tmp[:, 0] = X
+    X = tmp
+
+    eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
+
+    db = DBSCAN(eps=eps, min_samples=5).fit(X)
+
+    # Draw DBSCAN outliers
+    for i in range(0, len(centroids)):
+        # Draw outliers
+        if db.labels_[i] == -1:
+            cv2.circle(img, tuple([75, np.round(centroids[i, 0]).astype(np.int)]), radius=3,
+                       color=(0, 0, 127), thickness=3, lineType=1, shift=0)
+            # print('{}'.format(i))
+
+    # Remove outliers
+    centroids = centroids[db.labels_ != -1, :]
+    labels = db.labels_[db.labels_ != -1]
+    return centroids, labels
+
+
+def draw_clusters(img, centroids, labels):
+    # Draw and count the cluster
+    n_clusters = 1
+    clusters_lines = []
+    for i in range(0, len(centroids) - 1):
+        # Draw the line between the clusters
+        if labels[i] != labels[i + 1]:
+            # Count the cluster
+            n_clusters += 1
+            # Compute line location
+            clusters_lines.append((centroids[i, 0] + centroids[i + 1, 0]) / 2.0)
+            # Draw line
+            cv2.line(img, tuple([0, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
+                     tuple([4000, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
+                     color=(0, 127, 0), thickness=4, lineType=8, shift=0)
+    print("C:{}".format(n_clusters))
+    return clusters_lines
+
+
+def find_cc_from_centroid(c, cc_properties):
+    for cc in cc_properties:
+        if (np.asarray(cc.centroid[0:2]) == c).all():
+            return cc
+    return None
+
+
+#######################################################################################################################
+
+if __name__ == "__main__":
+    # Set up logging to console
+    formatter = logging.Formatter(
+        fmt='%(asctime)s %(funcName)s %(levelname)-8s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S')
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.formatter = formatter
+    logging.getLogger().addHandler(stderr_handler)
+    logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(
+        format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
+        level=logging.INFO)
+    logging.info('Printing activity to the console')
+    main()
 
     ################################################################################
     ################################################################################
@@ -261,91 +409,3 @@ def main():
     ################################################################################
     ################################################################################
     ################################################################################
-
-    # Print again
-    cv2.imshow('image', img)
-
-    # Hold on
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-#######################################################################################################################
-
-def prepare_image(img):
-    # img = img[:,:,1] #TODO make it select only the text pixels from SegImg
-    img[:, :, 0] = 0
-    img[:, :, 2] = 0
-    locations = np.where(img == 127)
-    img[:, :, 1] = 0
-    img[locations[0], locations[1]] = 255
-    return img
-
-
-def detect_outliers(centroids, area):
-    big_enough = area > 0.3 * np.mean(area)
-    small_enough = area < 2 * np.mean(area)
-    no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
-    no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
-    return no_outliers
-
-
-def cluster(img, centroids):
-    # Attempt clustering with DBSCAN
-    X = centroids[:, 0]
-    X = (X - np.min(X)) / (np.max(X) - np.min(X))
-    tmp = np.zeros((X.shape[0], 2))
-    tmp[:, 0] = X
-    X = tmp
-
-    eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
-
-    db = DBSCAN(eps=eps, min_samples=5).fit(X)
-
-    # Draw DBSCAN outliers
-    for i in range(0, len(centroids)):
-        # Draw outliers
-        if db.labels_[i] == -1:
-            cv2.circle(img, tuple([75, np.round(centroids[i,0]).astype(np.int)]), radius=3,
-                       color=(0, 0, 127), thickness=3, lineType=1, shift=0)
-            # print('{}'.format(i))
-
-    # Remove outliers
-    centroids = centroids[db.labels_ != -1, :]
-    labels = db.labels_[db.labels_ != -1]
-    return centroids, labels
-
-
-def draw_clusters(img, centroids, labels):
-    # Draw and count the cluster
-    n_clusters = 1
-    clusters_lines = []
-    for i in range(0, len(centroids) - 1):
-        # Draw the line between the clusters
-        if labels[i] != labels[i + 1]:
-            # Count the cluster
-            n_clusters += 1
-            # Compute line location
-            clusters_lines.append((centroids[i, 0] + centroids[i + 1, 0]) / 2.0)
-            # Draw line
-            cv2.line(img, tuple([0, np.round(clusters_lines[n_clusters-2]).astype(np.int)]),
-                     tuple([4000, np.round(clusters_lines[n_clusters-2]).astype(np.int)]),
-                     color=(0, 127, 0), thickness=4, lineType=8, shift=0)
-    print("C:{}".format(n_clusters))
-    return clusters_lines
-
-#######################################################################################################################
-
-if __name__ == "__main__":
-    # Set up logging to console
-    formatter = logging.Formatter(
-        fmt='%(asctime)s %(funcName)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
-    stderr_handler = logging.StreamHandler()
-    stderr_handler.formatter = formatter
-    logging.getLogger().addHandler(stderr_handler)
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.basicConfig(
-        format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
-        level=logging.INFO)
-    logging.info('Printing activity to the console')
-    main()
