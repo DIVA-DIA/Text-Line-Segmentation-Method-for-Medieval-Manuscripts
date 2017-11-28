@@ -50,6 +50,12 @@ def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baseli
     file.close()
 
 
+def read_max_textline_from_file(pageFile):
+    tree = ET.parse(pageFile)
+    root = tree.getroot()
+    return len(root[1][0])-2
+
+
 def prettify(elem):
     """Return a pretty-printed XML string for the Element.
     """

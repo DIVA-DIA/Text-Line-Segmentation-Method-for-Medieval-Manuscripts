@@ -7,7 +7,7 @@ import logging
 
 import cv2
 import numpy as np
-from XMLwriter import writePAGEfile
+from XMLhandler import writePAGEfile
 from scipy.spatial import ConvexHull
 from skimage import measure
 from sklearn.cluster import DBSCAN
@@ -35,6 +35,7 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     :param a: param_a
     :param b: param_b
     """
+
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
