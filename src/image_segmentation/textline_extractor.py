@@ -27,25 +27,27 @@ args = parser.parse_args()
 
 #######################################################################################################################
 
-def main(simplified=True):
+def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified=True, visualize=False):
     """
-    This is the main routine where the magic happens
-    :return:
-        None
+    Function to compute the text lines from a segmented image. This is the main routine where the magic happens
+    :param input_loc: path to segmented image
+    :param output_loc: path to save generated PAGE XML
+    :param a: param_a
+    :param b: param_b
     """
-
     #############################################
     # Load the image
-    img = cv2.imread('./../data/test1.png')
+    img = cv2.imread(input_loc)
 
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
     # Show the image to screen
-    cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
-    cv2.imshow('image', img)
-    cv2.resizeWindow('image', 1200, 800)
-    cv2.moveWindow('image', 200, 100)
+    if visualize:
+        cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
+        cv2.imshow('image', img)
+        cv2.resizeWindow('image', 1200, 800)
+        cv2.moveWindow('image', 200, 100)
 
     #############################################
     # Find CC
@@ -90,7 +92,7 @@ def main(simplified=True):
     #############################################
     # Cluster the points and draw the clusters
     # TODO add the area as 2nd dimensions instead of zeros?
-    centroids, labels = cluster(img, centroids)
+    centroids, labels = cluster(img, centroids, eps, min_samples)
     clusters_lines = draw_clusters(img, centroids, labels)
 
     # Draw centroids [AFTER CLUSTERING]
@@ -132,11 +134,9 @@ def main(simplified=True):
             boxes.append("{},{} {},{} {},{} {},{}".format(top, left, top, right, bottom, left, bottom, right))
 
         # Save bounding box for each row as PAGE file
-        writePAGEfile(textLines=boxes)
+        writePAGEfile(output_loc, textLines=boxes)
     # ******************************************* *******************************************
     else:
-
-
         # Create a working copy of the image to draw the CC convex hull & so
         cc_img = np.zeros(img.shape[0:2])
 
@@ -180,28 +180,25 @@ def main(simplified=True):
         # TODO then the whole CC belongs to such line and we will convex_hull it. OTHERWISE we crop this component on the
         # TODO median between the two lines (green line separating the clusters)
 
-        # Compute the big poligon matching all of them
+        # Compute the big polygon matching all of them
 
 
         #cv2.polylines(img, [boundary.hull.points[boundary.hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
 
+    if visualize:
+        # Print again
+        cv2.imshow('image', img)
 
+        # Hold on
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
+        # Print workig copy
+        #cv2.imshow('image', cc_img)
 
-
-    # Print again
-    cv2.imshow('image', img)
-
-    # Hold on
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-    # Print workig copy
-    #cv2.imshow('image', cc_img)
-
-    # Hold on
-    #cv2.waitKey(0)
-    #cv2.destroyAllWindows()
+        # Hold on
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
 #######################################################################################################################
 
@@ -224,7 +221,7 @@ def detect_outliers(centroids, area):
     return no_outliers
 
 
-def cluster(img, centroids):
+def cluster(img, centroids, eps, min_samples):
     # Attempt clustering with DBSCAN
     X = centroids[:, 0]
     X = (X - np.min(X)) / (np.max(X) - np.min(X))
@@ -232,9 +229,9 @@ def cluster(img, centroids):
     tmp[:, 0] = X
     X = tmp
 
-    eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
+    #eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
 
-    db = DBSCAN(eps=eps, min_samples=5).fit(X)
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
 
     # Draw DBSCAN outliers
     for i in range(0, len(centroids)):
@@ -291,7 +288,7 @@ if __name__ == "__main__":
         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
         level=logging.INFO)
     logging.info('Printing activity to the console')
-    main()
+    segment_textlines(input_loc='./../data/test1.png', output_loc="./../data/testfile.txt")
 
     ################################################################################
     ################################################################################

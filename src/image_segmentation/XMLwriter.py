@@ -3,7 +3,7 @@ import xml.dom.minidom as minidom
 import xml.etree.cElementTree as ET
 
 
-def writePAGEfile(textLines="", textRegionCoords="not provided", baselines=None):
+def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baselines=None):
     # Create root element and add the attributes
     root = ET.Element("PcGts")
     root.set("xmls", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
@@ -25,13 +25,11 @@ def writePAGEfile(textLines="", textRegionCoords="not provided", baselines=None)
     textRegion.set("custom", "0")
 
     # Add Coords
-    # TODO the points should be provided as parameter
     ET.SubElement(textRegion, "Coords", points=textRegionCoords)
 
     # Add TextLine
     for i, line in enumerate(textLines):
         textLine = ET.SubElement(textRegion, "TextLine", id="textline_{}".format(i), custom="0")
-        # TODO the points should be provided as parameter
         ET.SubElement(textLine, "Coords", points=line)
         if baselines:
             ET.SubElement(textLine, "Baseline", points=baselines[i])
@@ -44,11 +42,10 @@ def writePAGEfile(textLines="", textRegionCoords="not provided", baselines=None)
     textEquiv = ET.SubElement(textRegion, "TextEquiv")
     ET.SubElement(textEquiv, "Unicode")
 
-    print(prettify(root))
+    #print(prettify(root))
 
     # Save on file
-    # TODO filename as parameter
-    file = open("./../data/testfile.txt", "w")
+    file = open(outpath, "w")
     file.write(prettify(root))
     file.close()
 
