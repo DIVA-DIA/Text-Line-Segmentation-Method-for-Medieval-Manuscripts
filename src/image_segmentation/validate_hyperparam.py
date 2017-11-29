@@ -1,12 +1,18 @@
-import os
 import argparse
-import numpy as np
+import itertools
+import os
+from multiprocessing import Pool
 from subprocess import Popen, PIPE, STDOUT
+
+import numpy as np
 from sklearn.model_selection import ParameterGrid
 
+from XMLhandler import read_max_textline_from_file
+from textline_extractor import segment_textlines
+
 # Specify the list of parameters to grid-search over.
-param_list = {'a': [1, 2, 3],
-              'b': [2, 3, 4]}
+param_list = {'eps': [0.01],
+              'min_samples': [1, 5]}
 
 
 def is_image_file(filename):
@@ -23,52 +29,74 @@ def get_list_images(dir):
     return images
 
 
-def dummy_fn(input_image, output_loc, a, b):
-    """
-    Function to compute the text lines from a segmented image.
-    :param input_image: path to segmented image
-    :param output_loc: path to save generated PAGE XML
-    :param a: param_a
-    :param b: param_b
-    :return: path to generated PAGE XML
-    """
-    return output_path
-
-
 def get_score(logs):
-    score = 1.0
+    try:
+        assert str(logs[-13]).split(' ')[-4:-2] == ['line', 'IU']
+        score = float(str(logs[-13]).split(' ')[-1][:-3])
+    except:
+        print('Not line IU')
+        score = 0.0
     return score
+
+
+def compute_for_all(arg_container):
+    input_loc, params, args = arg_container
+    filename_without_ext = os.path.basename(input_loc).split('.')[0]
+    params['input_loc'] = input_loc
+    params['output_loc'] = os.path.join(args.output_path,
+                                        filename_without_ext + '_eps_{}_min_samples_{}.xml'.format(params['eps'],
+                                                                                                   params[
+                                                                                                       'min_samples']))
+    output_loc = params['output_loc']
+    num_lines = segment_textlines(**params)
+    pixel_gt = os.path.join(args.gt_folder, filename_without_ext + '.png')
+    page_gt = os.path.join(args.gt_folder, filename_without_ext + '.xml')
+    num_gt_lines = read_max_textline_from_file(page_gt)
+
+    if num_gt_lines == num_lines:
+        p = Popen(['java', '-jar', args.eval_tool,
+                   '-igt', pixel_gt,
+                   '-xgt', page_gt,
+                   '-xp', output_loc
+                   ], stdout=PIPE, stderr=STDOUT)
+        logs = [line for line in p.stdout]
+        score = get_score(logs)
+    else:
+        # print('num_lines {} different from num_gt_lines {}'.format(num_lines, num_gt_lines))
+        score = 0.0
+        logs = []
+    return [params, score, logs]
 
 
 def main(args):
     global param_list
 
     input_images = get_list_images(args.input_folder)
-    jar_loc = os.path.join(args.eval_tool, 'out/artifacts/LineSegmentationEvaluator.jar')
-    scores = []
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
+    param_scores = []
 
-    for img in input_images:
-        for params in ParameterGrid(param_list):
-            filename_without_ext = os.path.basename(img).split('.')[0]
+    pool = Pool(args.j)
 
-            params['input_image'] = img
-            params['output_loc'] = args.output_path
+    for i, params in enumerate(ParameterGrid(param_list)):
+        print('{} of {} parameters processed.'.format(i, len(ParameterGrid(param_list))))
+        results = list(pool.map(compute_for_all, zip(input_images, itertools.repeat(params), itertools.repeat(args))))
+        param_scores.append(results)
+    pool.close()
 
-            output_loc = dummy_fn(**params)
+    score_matrix = []
+    with open('logs.txt', 'w') as f:
+        for param_set in param_scores:
+            eps = param_set[0][0]['eps']
+            min_samples = param_set[0][0]['min_samples']
+            score = np.average([item[1] for item in param_set])
+            f.write('eps: {} min_samples: {} score: {:.2f}\n'.format(
+                eps,
+                min_samples,
+                score))
+            score_matrix.append([eps, min_samples, score])
 
-            pixel_gt = os.path.join(args.gt_folder, filename_without_ext + '.png')
-            page_gt = os.path.join(args.gt_folder, filename_without_ext + '.xml')
-
-            p = Popen(['java', '-jar', jar_loc,
-                       '-igt', pixel_gt,
-                       '-xgt', page_gt,
-                       '-xp', output_loc
-                       ], stdout=PIPE, stderr=STDOUT)
-            logs = [line for line in p.stdout]
-            score = get_score(logs)
-            scores.append(params, score, logs)
-
-    np.save(scores)
+    np.save('param_scores.npy', param_scores)
     return
 
 
@@ -76,16 +104,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Grid search to identify best hyper-parameters for text line '
                                                  'segmentation.')
     # Required arguments
-    parser.add_argument('input_folder', metavar='DIR',
+    parser.add_argument('--input_folder', metavar='DIR',
                         help='path to folder containing input files')
-    parser.add_argument('gt_folder', metavar='DIR',
+    parser.add_argument('--gt_folder', metavar='DIR',
                         help='path to folder containing pixel-GT and XML-GT files')
     # Optional argument
     parser.add_argument('--output_path', metavar='DIR',
                         default='/tmp', help='path to store temporary output files')
     parser.add_argument('--eval_tool', metavar='DIR',
-                        default='./DIVA_Line_Segmentation_Evaluator',
+                        default='./DIVA_Line_Segmentation_Evaluator/out/artifacts/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
+    parser.add_argument('-j', default=8, type=int,
+                        help='number of thread to use for parallel search')
     args = parser.parse_args()
 
     main(args)
