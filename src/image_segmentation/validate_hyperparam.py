@@ -12,7 +12,7 @@ from textline_extractor import segment_textlines
 
 # Specify the list of parameters to grid-search over.
 param_list = {'eps': [0.01],
-              'min_samples': [1, 5]}
+              'min_samples': [5]}
 
 
 def is_image_file(filename):
@@ -62,7 +62,7 @@ def compute_for_all(arg_container):
         logs = [line for line in p.stdout]
         score = get_score(logs)
     else:
-        # print('num_lines {} different from num_gt_lines {}'.format(num_lines, num_gt_lines))
+        print('Incorrect line count')
         score = 0.0
         logs = []
     return [params, score, logs]
