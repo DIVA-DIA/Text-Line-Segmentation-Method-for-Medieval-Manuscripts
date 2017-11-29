@@ -116,7 +116,12 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     # ******************************************* *******************************************
     if simplified:
         boxes = []
-        for line in clusters_centroids:
+        clusters_lines
+        # Compute upper and lower bound of the text area
+        points = points_in_line(cc_properties, clusters_centroids[0])
+        top = np.round(np.min(points[:, 0])).astype(np.int)
+
+        for i, line in enumerate(clusters_centroids):
             points = []
             for c in line:
                 cc = find_cc_from_centroid(c, cc_properties)
@@ -202,6 +207,13 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
 
 #######################################################################################################################
 
+def points_in_line(cc_properties, line):
+    points = []
+    for c in line:
+        cc = find_cc_from_centroid(c, cc_properties)
+        points.extend(cc.coords[::3, 0:2])
+    points = np.array(points)
+    return points
 
 def prepare_image(img):
     """
