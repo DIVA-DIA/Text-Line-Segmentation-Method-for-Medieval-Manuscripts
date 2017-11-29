@@ -134,7 +134,7 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
             top = np.round(np.min(line[:, 0])).astype(np.int)
             right = np.round(np.max(line[:, 1])).astype(np.int)
             bottom = np.round(np.max(line[:, 0])).astype(np.int)
-            boxes.append("{},{} {},{} {},{} {},{}".format(top, left, top, right, bottom, left, bottom, right))
+            boxes.append("{},{} {},{} {},{} {},{}".format(left, top, right, top, left, bottom, right, bottom))
 
         # Save bounding box for each row as PAGE file
         writePAGEfile(output_loc, textLines=boxes)
