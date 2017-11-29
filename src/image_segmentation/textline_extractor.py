@@ -2,7 +2,6 @@
 """
 
 # Utils
-import argparse
 import logging
 
 import cv2
@@ -11,18 +10,6 @@ from XMLhandler import writePAGEfile
 from scipy.spatial import ConvexHull
 from skimage import measure
 from sklearn.cluster import DBSCAN
-
-#######################################################################################################################
-# Argument Parser
-parser = argparse.ArgumentParser(
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    description='Textline Segmentation')
-
-# Inputs
-parser.add_argument('--segmented_image', help='path of the segmented image')
-
-# Parse
-args = parser.parse_args()
 
 
 #######################################################################################################################
