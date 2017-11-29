@@ -122,11 +122,13 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
                 cc = find_cc_from_centroid(c, cc_properties)
                 points.extend(cc.coords[::3, 0:2])
 
+            points = np.array([item for item in points])
+
             left = np.round(np.min(points[:, 1])).astype(np.int)
             top = np.round(np.min(points[:, 0])).astype(np.int)
             right = np.round(np.max(points[:, 1])).astype(np.int)
             bottom = np.round(np.max(points[:, 0])).astype(np.int)
-            boxes.append("{},{} {},{} {},{} {},{}".format(left, top, right, top, left, bottom, right, bottom))
+            boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom,right, bottom))
 
         # Save bounding box for each row as PAGE file
         writePAGEfile(output_loc, textLines=boxes)
