@@ -1,6 +1,9 @@
 import datetime
+import re
 import xml.dom.minidom as minidom
 import xml.etree.cElementTree as ET
+
+import numpy as np
 
 
 def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baselines=None):
@@ -53,7 +56,14 @@ def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baseli
 def read_max_textline_from_file(pageFile):
     tree = ET.parse(pageFile)
     root = tree.getroot()
-    return len(root[1][0])-2
+    NSMAP = {'pr': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'}
+    id = 0
+    for textregion in root[1].findall('.//pr:TextRegion', namespaces=NSMAP):
+        if 'textline' in textregion.attrib['id']:
+            for textline in textregion.findall('.//pr:TextLine', namespaces=NSMAP):
+                str = textline.attrib['id']
+                id = np.max([id, int(re.findall(r'\d+', str)[0])])
+    return id+1
 
 
 def prettify(elem):

@@ -98,42 +98,45 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     centroids = centroids[np.argsort(centroids[:, 0]), :]
 
     # Separate the centroids in cluster bins
-    clusters_centroids = [[]]
-    l = 0
-    for c in zip(centroids):
-        if l == len(clusters_lines) or c[0][0] < clusters_lines[l]:
-            clusters_centroids[l].append(c[0])
-        else:
-            l += 1
-            clusters_centroids.append([])
-            clusters_centroids[l].append(c[0])
-
-    # Sort the bins according to the horizontal axis
-    for i in range(0, len(clusters_centroids)):
-        clusters_centroids[i] = np.asarray(clusters_centroids[i])
-        clusters_centroids[i] = clusters_centroids[i][np.argsort(clusters_centroids[i][:, 1]), :]
+    clusters_centroids = separate_in_bins(centroids, clusters_lines)
 
     # ******************************************* *******************************************
     if simplified:
+
         boxes = []
-        clusters_lines
-        # Compute upper and lower bound of the text area
-        points = points_in_line(cc_properties, clusters_centroids[0])
-        top = np.round(np.min(points[:, 0])).astype(np.int)
 
-        for i, line in enumerate(clusters_centroids):
-            points = []
-            for c in line:
-                cc = find_cc_from_centroid(c, cc_properties)
-                points.extend(cc.coords[::3, 0:2])
+        # Separate the centroids in cluster bins WITH ALL CENTROIDS
+        clusters_centroids = separate_in_bins(all_centroids, clusters_lines)
 
-            points = np.array([item for item in points])
+        # Compute upper bound of the text area and add FIRST line
+        points = points_in_line(cc_properties, clusters_centroids[0], fast=True)
+        top_line = np.round(np.min(points[:, 0])).astype(np.int)
+        left = np.round(np.min(points[:, 1])).astype(np.int)
+        right = np.round(np.max(points[:, 1])).astype(np.int)
+        boxes.append("{},{} {},{} {},{} {},{}".format(right, top_line,
+                                                      left, top_line,
+                                                      left, np.floor(clusters_lines[0]).astype(np.int),
+                                                      right, np.floor(clusters_lines[0]).astype(np.int)))
+
+        # Add all intermediate lines (not the first/last ones)
+        for i, line in enumerate(clusters_centroids[1:-1]):
+            points = points_in_line(cc_properties, line, fast=True)
 
             left = np.round(np.min(points[:, 1])).astype(np.int)
-            top = np.round(np.min(points[:, 0])).astype(np.int)
+            top = np.floor(clusters_lines[i]).astype(np.int)
             right = np.round(np.max(points[:, 1])).astype(np.int)
-            bottom = np.round(np.max(points[:, 0])).astype(np.int)
-            boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom,right, bottom))
+            bottom = np.ceil(clusters_lines[i+1]).astype(np.int)
+            boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom, right, bottom))
+
+        # Compute lower bound of the text area and add LAST line
+        points = points_in_line(cc_properties, clusters_centroids[-1], fast=True)
+        bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
+        left = np.round(np.min(points[:, 1])).astype(np.int)
+        right = np.round(np.max(points[:, 1])).astype(np.int)
+        boxes.append("{},{} {},{} {},{} {},{}".format(right, np.ceil(clusters_lines[-1]).astype(np.int),
+                                                      left, np.ceil(clusters_lines[-1]).astype(np.int),
+                                                      left, bottom_line,
+                                                      right, bottom_line))
 
         # Save bounding box for each row as PAGE file
         writePAGEfile(output_loc, textLines=boxes)
@@ -205,15 +208,12 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     # Return the number of clusters
     return len(clusters_lines)+1
 
+
+
+
+
 #######################################################################################################################
 
-def points_in_line(cc_properties, line):
-    points = []
-    for c in line:
-        cc = find_cc_from_centroid(c, cc_properties)
-        points.extend(cc.coords[::3, 0:2])
-    points = np.array(points)
-    return points
 
 def prepare_image(img):
     """
@@ -298,6 +298,38 @@ def find_cc_from_centroid(c, cc_properties):
         if (np.asarray(cc.centroid[0:2]) == c).all():
             return cc
     return None
+
+
+def points_in_line(cc_properties, line, fast=False):
+    points = []
+    if fast:
+        points.extend(find_cc_from_centroid(line[0], cc_properties).coords[::3, 0:2])
+        points.extend(find_cc_from_centroid(line[-1], cc_properties).coords[::3, 0:2])
+    else:
+        for c in line:
+            cc = find_cc_from_centroid(c, cc_properties)
+            points.extend(cc.coords[::3, 0:2])
+    points = np.array(points)
+    return points
+
+
+def separate_in_bins(centroids, clusters_lines):
+    clusters_centroids = [[]]
+    l = 0
+    for c in zip(centroids):
+        if l == len(clusters_lines) or c[0][0] < clusters_lines[l]:
+            clusters_centroids[l].append(c[0])
+        else:
+            l += 1
+            clusters_centroids.append([])
+            clusters_centroids[l].append(c[0])
+
+    # Sort the bins according to the horizontal axis
+    for i in range(0, len(clusters_centroids)):
+        clusters_centroids[i] = np.asarray(clusters_centroids[i])
+        clusters_centroids[i] = clusters_centroids[i][np.argsort(clusters_centroids[i][:, 1]), :]
+
+    return clusters_centroids
 
 
 #######################################################################################################################
