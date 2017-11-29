@@ -49,6 +49,7 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     for cc in cc_properties:
         all_centroids.append(cc.centroid[0:2])
     all_centroids = np.asarray(all_centroids)
+    all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
 
     # Collect CC sizes
     area = []
@@ -314,6 +315,7 @@ def points_in_line(cc_properties, line, fast=False):
 
 
 def separate_in_bins(centroids, clusters_lines):
+
     clusters_centroids = [[]]
     l = 0
     for c in zip(centroids):
@@ -349,7 +351,7 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
     segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0019r_max_gt.png',
                       output_loc="./../data/testfile.txt",
-                      visualize=False,
+                      visualize=True,
                       simplified=True)
     logging.info('Terminated')
 
