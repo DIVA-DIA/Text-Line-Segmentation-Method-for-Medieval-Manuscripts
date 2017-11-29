@@ -130,10 +130,15 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     if simplified:
         boxes = []
         for line in clusters_centroids:
-            left = np.round(np.min(line[:, 1])).astype(np.int)
-            top = np.round(np.min(line[:, 0])).astype(np.int)
-            right = np.round(np.max(line[:, 1])).astype(np.int)
-            bottom = np.round(np.max(line[:, 0])).astype(np.int)
+            points = []
+            for c in line:
+                cc = find_cc_from_centroid(c, cc_properties)
+                points.extend(cc.coords[::3, 0:2])
+
+            left = np.round(np.min(points[:, 1])).astype(np.int)
+            top = np.round(np.min(points[:, 0])).astype(np.int)
+            right = np.round(np.max(points[:, 1])).astype(np.int)
+            bottom = np.round(np.max(points[:, 0])).astype(np.int)
             boxes.append("{},{} {},{} {},{} {},{}".format(left, top, right, top, left, bottom, right, bottom))
 
         # Save bounding box for each row as PAGE file
