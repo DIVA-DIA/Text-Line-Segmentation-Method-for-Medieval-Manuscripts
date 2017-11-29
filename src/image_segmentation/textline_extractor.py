@@ -7,7 +7,7 @@ import logging
 
 import cv2
 import numpy as np
-from XMLhandler import writePAGEfile, read_max_textline_from_file
+from XMLhandler import writePAGEfile
 from scipy.spatial import ConvexHull
 from skimage import measure
 from sklearn.cluster import DBSCAN
@@ -195,11 +195,11 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
         cv2.destroyAllWindows()
 
         # Print workig copy
-        #cv2.imshow('image', cc_img)
+        cv2.imshow('image', cc_img)
 
         # Hold on
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     # Return the number of clusters
     return len(clusters_lines)+1
@@ -208,14 +208,47 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
 
 
 def prepare_image(img):
-    # img = img[:,:,1] #TODO make it select only the text pixels from SegImg
+    """
     img[:, :, 0] = 0
     img[:, :, 2] = 0
     locations = np.where(img == 127)
     img[:, :, 1] = 0
     img[locations[0], locations[1]] = 255
+    """
+    # Erase green (if any, but shouldn't have values here)
+    img[:, :, 1] = 0
+    # Find and remove boundaries (set to bg)
+    boundaries = np.where(img == 128)
+    img[boundaries[0], boundaries[1]] = 0
+    # Find regular text and make it white
+    locations = np.where(img == 8)
+    img[locations[0], locations[1]] = 128
+    # Find text+decoration and make it white
+    locations = np.where(img == 12)
+    img[locations[0], locations[1]] = 128
+    # Erase red & blue (so we get rid of everything else, only green will be set)
+    img[:, :, 0] = 0
+    img[:, :, 2] = 0
     return img
 
+"""
+
+I(:,:,2) = 0;
+
+for x=1:size(I,1),
+    for y=1:size(I,2),
+        
+        if I(x,y,3) == 8 || I(x,y,3) == 12,
+            I(x,y,3) = 0;
+            I(x,y,2) = 127;
+            continue;
+        end
+        
+        I(x,y,3) = 0;
+        
+    end
+end
+"""
 
 def detect_outliers(centroids, area):
     big_enough = area > 0.3 * np.mean(area)
@@ -292,7 +325,10 @@ if __name__ == "__main__":
         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
         level=logging.INFO)
     logging.info('Printing activity to the console')
-    segment_textlines(input_loc='./../data/test4.png', output_loc="./../data/testfile.txt")
+    segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0019r_max_gt.png',
+                      output_loc="./../data/testfile.txt",
+                      visualize=False,
+                      simplified=True)
     logging.info('Terminated')
 
     ################################################################################
