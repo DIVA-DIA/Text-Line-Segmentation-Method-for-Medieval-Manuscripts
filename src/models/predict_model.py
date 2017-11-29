@@ -110,7 +110,7 @@ def main():
 
     # create model
     model = models.resnet18(pretrained=True)
-    model.fc = nn.Linear(512, 8)
+    model.fc = nn.Linear(512, 9)
     model = torch.nn.DataParallel(model).cuda()
 
 
@@ -163,7 +163,7 @@ def remap_indices(gt_img):
     gt_img_proc[locs[0], locs[1], 0] = 1
 
     # Find Text
-    locs = np.where(gt_img[:, :, 0] == 4)
+    locs = np.where(gt_img[:, :, 0] == 1)
     gt_img_proc[locs[0], locs[1], 0] = 8
 
 
@@ -173,24 +173,29 @@ def remap_indices(gt_img):
 
 
     # Find Comments
-    locs = np.where(gt_img[:, :, 0] == 1)
+    locs = np.where(gt_img[:, :, 0] == 3)
     gt_img_proc[locs[0], locs[1], 0] = 2
 
     # Find Text+Decoration
-    locs = np.where(gt_img[:, :, 0] == 6)
+    locs = np.where(gt_img[:, :, 0] == 4)
     gt_img_proc[locs[0], locs[1], 0] = 12
 
     # Find Text+Comments
     locs = np.where(gt_img[:, :, 0] == 5)
     gt_img_proc[locs[0], locs[1], 0] = 10
 
+
+    # Find Text+Decoration
+    locs = np.where(gt_img[:, :, 0] == 6)
+    gt_img_proc[locs[0], locs[1]] = 12
+
     # Find Decoration+Comment
-    locs = np.where(gt_img[:, :, 0] == 3)
+    locs = np.where(gt_img[:, :, 0] == 7)
     gt_img_proc[locs[0], locs[1]] = 6
 
 
     # Find Text+Decoration+Comment
-    locs = np.where(gt_img[:, :, 0] == 7)
+    locs = np.where(gt_img[:, :, 0] >= 8)
     gt_img_proc[locs[0], locs[1]] = 14
     return gt_img_proc
 

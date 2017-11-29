@@ -28,22 +28,50 @@ def process_gt(gt_img_path):
     gt_img = cv2.imread(gt_img_path)
     gt_img_proc = np.zeros((gt_img.shape[0], gt_img.shape[1]), dtype=np.uint8)
 
-    transform_pairs = [[1,0], # Background
-                       [2,1], # Comment
-                       [4,2], # Decoration
-                       [8,4], # Text
-                       [6, 3],  # Comment + Decoration
-                       [10,5], # Comment + Text
-                       [12,6], # Decoration + Text
-                       [14,7]] # Comment + Decoration + Text
-
-    # Find Border Pixels and set them to background
+    # Find Border Pixels
     locs = np.where(gt_img[:,:,2] == 128)
     gt_img[locs[0], locs[1]] = 1
 
-    for gt_label, our_label in transform_pairs:
-        locs = np.where(gt_img[:,:,0] == gt_label)
-        gt_img_proc[locs[0], locs[1]] = our_label
+    # Find Background
+    locs = np.where(gt_img[:, :, 0] == 1)
+    gt_img_proc[locs[0], locs[1]] = 0
+
+    # Find Text
+    locs = np.where(gt_img[:, :, 0] == 8)
+    gt_img_proc[locs[0], locs[1]] = 1
+
+
+    # Find Decoration
+    locs = np.where(gt_img[:, :, 0] == 4)
+    gt_img_proc[locs[0], locs[1]] = 2
+
+
+    # Find Comments
+    locs = np.where(gt_img[:, :, 0] == 2)
+    gt_img_proc[locs[0], locs[1]] = 3
+
+    # Find Text+Decoration
+    locs = np.where(gt_img[:, :, 0] == 12)
+    gt_img_proc[locs[0], locs[1]] = 4
+
+    # Find Text+Comments
+    locs = np.where(gt_img[:, :, 0] == 10)
+    gt_img_proc[locs[0], locs[1]] = 5
+
+
+    # Find Text+Decoration
+    locs = np.where(gt_img[:, :, 0] == 12)
+    gt_img_proc[locs[0], locs[1]] = 6
+
+    # Find Decoration+Comment
+    locs = np.where(gt_img[:, :, 0] == 6)
+    gt_img_proc[locs[0], locs[1]] = 7
+
+
+    # Find Text+Decoration+Comment
+    locs = np.where(gt_img[:, :, 0] == 14)
+    gt_img_proc[locs[0], locs[1]] = 8
+
 
     return gt_img_proc
 
@@ -69,7 +97,6 @@ def make_dataset(data_folder, ground_truth, save_path, resize):
         except AssertionError:
             print("Filenames do not correspond: {} \t {}".format(img_path, gt_img_path))
 
-
         category = img_path.split('/')[-2]
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -78,6 +105,9 @@ def make_dataset(data_folder, ground_truth, save_path, resize):
         gt_img = process_gt(gt_img_path)
         if resize is not None:
             gt_img = cv2.resize(gt_img, (0,0), fx=resize, fy=resize, interpolation=cv2.INTER_NEAREST)
+        if 8 in gt_img:
+            locs = np.where(gt_img == 8)
+            gt_img[locs[0], locs[1]] = 7
         if category == 'training':
             train.append([img, gt_img, img_path, gt_img_path])
         elif category == 'validation':

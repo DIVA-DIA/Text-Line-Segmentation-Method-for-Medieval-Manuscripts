@@ -10,12 +10,15 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
 import torchvision.transforms as transforms
+import torchvision.datasets as datasets
 import torchvision.models as models
 
 import tensorboardX
 
 import numpy as np
+from sklearn.preprocessing import normalize
 from PIL import Image
+import cv2
 from skimage.util import pad
 
 model_names = sorted(name for name in models.__dict__
@@ -111,13 +114,16 @@ class DatasetInMem():
 
     def compute_class_weights(self):
         tmp = [np.unique(item[1], return_counts=True) for item in self.data]
-        counts = np.zeros((8))
+        counts = np.zeros((9))
         for index, count in tmp:
             counts[index] += count
         class_counts = counts
+        # counts = normalize(counts.reshape(-1, 1))[0]
         counts = counts/np.sum(counts)
-        target_weight = 1.0 / 8
 
+        target_weight = 1.0 / 9
+
+        # class_target_weights = normalize([target_weight / item if item != 0 else 0 for item in counts])[0]
         class_target_weights = [target_weight / item if item != 0 else 0 for item in counts]
         class_target_weights = class_target_weights/np.sum(class_target_weights)
         return class_counts, counts, class_target_weights
@@ -172,25 +178,34 @@ class DatasetInMem():
 
 
         img = self.data[z][0]
-        img224 = self.crop_with_padding(img, x, y, 224)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # path = self.data[z][2]
+
+        # img32 = cv2.resize(self.crop_with_padding(img, x, y, 32), (256, 256))
+        img256 = self.crop_with_padding(img, x, y, 256)
         img32 = []
-        return transform_img(img224), target
+
+        # return img32, transform_img(img256), target, [x, y, index], path
+        return transform_img(img256), target
 
     def __len__(self):
         return self.len
 
+
+
 def main():
     global args, best_prec1
-
+    args = parser.parse_args()
 
     # create model
     if args.pretrained:
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
+        model.fc = nn.Linear(512,9)
     else:
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
-    model.fc = nn.Linear(512, 8)
 
     if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
         model.features = torch.nn.DataParallel(model.features)
@@ -201,11 +216,12 @@ def main():
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    # optimizer = torch.optim.SGD(model.parameters(), args.lr,
+                                # momentum=args.momentum,
+                                # weight_decay=args.weight_decay)
 
-
+    optimizer = torch.optim.Adam(model.parameters(), args.lr)
+   # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
@@ -227,16 +243,31 @@ def main():
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
+
+
+
+    # val_loader = torch.utils.data.DataLoader(
+    #     DatasetInMem(valdir, transforms.Compose([
+    #         # transforms.Scale(768),
+    #         # transforms.CenterCrop(256),
+    #         # transforms.RandomCrop(256),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])),
+    #     batch_size=args.batch_size, shuffle=False,
+    #     num_workers=args.workers, pin_memory=True)
+
     val_ds = DatasetInMem(valdir, transforms.Compose([
         transforms.ToTensor(),
         normalize,
     ]))
 
-    # val_sampler = torch.utils.data.sampler.SubsetRandomSampler(np.random.randint(0, len(val_ds), args.num_val_patches))
     class_weights = val_ds.class_target_weights
     reciprocal_weights = [class_weights[item] for item in val_ds.generate_labels()]
     val_sampler = torch.utils.data.sampler.WeightedRandomSampler(reciprocal_weights, args.num_val_patches)
     del reciprocal_weights
+    #
+    val_sampler = torch.utils.data.sampler.SubsetRandomSampler(np.random.randint(0, len(val_ds), args.num_val_patches))
 
     val_loader = torch.utils.data.DataLoader(val_ds,
                                              batch_size=args.batch_size, shuffle=False,
@@ -247,6 +278,20 @@ def main():
     if args.evaluate:
         validate(val_loader, model, criterion, args.start_epoch)
         return
+
+
+    # train_loader = torch.utils.data.DataLoader(
+    #     DatasetInMem(traindir, transforms.Compose([
+    #         # transforms.Scale(768),
+    #         # transforms.CenterCrop(256),
+    #         #transforms.RandomHorizontalFlip(),
+    #         # transforms.RandomCrop(256),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])),
+    #     batch_size=args.batch_size, shuffle=True,
+    #     num_workers=args.workers, pin_memory=True)
+
 
     train_ds = DatasetInMem(traindir, transforms.Compose([
         transforms.ToTensor(),
