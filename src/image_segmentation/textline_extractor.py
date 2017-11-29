@@ -7,7 +7,7 @@ import logging
 
 import cv2
 import numpy as np
-from XMLhandler import writePAGEfile
+from XMLhandler import writePAGEfile, read_max_textline_from_file
 from scipy.spatial import ConvexHull
 from skimage import measure
 from sklearn.cluster import DBSCAN
@@ -195,11 +195,11 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
         cv2.destroyAllWindows()
 
         # Print workig copy
-        cv2.imshow('image', cc_img)
+        #cv2.imshow('image', cc_img)
 
         # Hold on
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
     # Return the number of clusters
     return len(clusters_lines)+1
@@ -231,24 +231,6 @@ def prepare_image(img):
     img[:, :, 2] = 0
     return img
 
-"""
-
-I(:,:,2) = 0;
-
-for x=1:size(I,1),
-    for y=1:size(I,2),
-        
-        if I(x,y,3) == 8 || I(x,y,3) == 12,
-            I(x,y,3) = 0;
-            I(x,y,2) = 127;
-            continue;
-        end
-        
-        I(x,y,3) = 0;
-        
-    end
-end
-"""
 
 def detect_outliers(centroids, area):
     big_enough = area > 0.3 * np.mean(area)
