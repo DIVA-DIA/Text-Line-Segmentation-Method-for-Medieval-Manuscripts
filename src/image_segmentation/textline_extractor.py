@@ -14,7 +14,7 @@ from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 
-def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified=True, visualize=False):
+def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplified=True, visualize=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -36,12 +36,12 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     if visualize:
         cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
         cv2.imshow('image', img)
-        cv2.resizeWindow('image', 1200, 800)
+        cv2.resizeWindow('image', 1600, 800)
         cv2.moveWindow('image', 200, 100)
 
     #############################################
     # Find CC
-    cc_labels = measure.label(img, background=0)
+    cc_labels = measure.label(img[:,:,1], background=0)
     cc_properties = measure.regionprops(cc_labels, cache=True)
 
     # Collect CC centroids
@@ -55,6 +55,18 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     area = []
     for cc in cc_properties:
         area.append(cc.area)
+    area = np.asarray(area)
+
+    # Split centroids who are too big
+    for i,c in enumerate(all_centroids):
+        if area[i] > 3 * np.mean(area):
+            cc = find_cc_from_centroid(c, cc_properties)
+            if abs(cc.orientation) < 3.14/4:
+
+                # On their location
+                cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=10,
+                           color=(0, 255, 255), thickness=20, lineType=1, shift=0)
+
 
     # Draw centroids [ALL]
     for c in all_centroids:
@@ -69,7 +81,10 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
     # Discard outliers & sort
     no_outliers = detect_outliers(all_centroids[:, 0], area)
     centroids = all_centroids[no_outliers, :]
+    filtered_area = area[no_outliers]
+    filtered_area = filtered_area[np.argsort(centroids[:, 0])]
     centroids = centroids[np.argsort(centroids[:, 0]), :]
+
 
     # Draw centroids [NO_OUTLIERS]
     for i, c in enumerate(centroids):
@@ -77,14 +92,18 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
         cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
                    color=(0, 200, 0), thickness=10, lineType=1, shift=0)
         # On the side
-        cv2.circle(img, tuple([25, np.round(c[0]).astype(np.int)]), radius=2,
+        tmp = (filtered_area - np.min(filtered_area)) / (np.max(filtered_area) - np.min(filtered_area))
+
+        cv2.circle(img, tuple([np.round(100+tmp[i]*50).astype(np.int) , np.round(c[0]).astype(np.int)]), radius=2,
                    color=(0, 200, 0), thickness=2, lineType=1, shift=0)
 
     #############################################
     # Cluster the points and draw the clusters
     # TODO add the area as 2nd dimensions instead of zeros?
-    centroids, labels = cluster(img, centroids, eps, min_samples)
+    centroids, labels = cluster(img, centroids, filtered_area, eps, min_samples)
     clusters_lines = draw_clusters(img, centroids, labels)
+
+    
 
     # Draw centroids [AFTER CLUSTERING]
     for i, c in enumerate(centroids):
@@ -217,13 +236,13 @@ def segment_textlines(input_loc, output_loc, eps=0.01, min_samples=5, simplified
 
 
 def prepare_image(img):
-    """
-    img[:, :, 0] = 0
-    img[:, :, 2] = 0
-    locations = np.where(img == 127)
-    img[:, :, 1] = 0
-    img[locations[0], locations[1]] = 255
-    """
+
+    # img[:, :, 0] = 0
+    # img[:, :, 2] = 0
+    # locations = np.where(img == 127)
+    # img[:, :, 1] = 0
+    # img[locations[0], locations[1]] = 255
+
     # Erase green (if any, but shouldn't have values here)
     img[:, :, 1] = 0
     # Find and remove boundaries (set to bg)
@@ -242,20 +261,35 @@ def prepare_image(img):
 
 
 def detect_outliers(centroids, area):
-    big_enough = area > 0.3 * np.mean(area)
-    small_enough = area < 2 * np.mean(area)
+    big_enough = area > 0.4 * np.mean(area)
+    small_enough = area < 3 * np.mean(area)
+    small_enough = area>0
     no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
     no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
     return no_outliers
 
 
-def cluster(img, centroids, eps, min_samples):
+def cluster(img, centroids, area, eps, min_samples):
+
+    #import matplotlib.pyplot as plt
+
+
+
+
     # Attempt clustering with DBSCAN
     X = centroids[:, 0]
     X = (X - np.min(X)) / (np.max(X) - np.min(X))
+    area = (area - np.min(area)) / (np.max(area) - np.min(area))
     tmp = np.zeros((X.shape[0], 2))
+    #tmp[:, 1] = area
     tmp[:, 0] = X
+
+    # plt.figure()
+    # plt.scatter(X, area)
+    # plt.show()
+
     X = tmp
+
 
     #eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
 
@@ -315,7 +349,6 @@ def points_in_line(cc_properties, line, fast=False):
 
 
 def separate_in_bins(centroids, clusters_lines):
-
     clusters_centroids = [[]]
     l = 0
     for c in zip(centroids):
@@ -349,7 +382,7 @@ if __name__ == "__main__":
         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
         level=logging.INFO)
     logging.info('Printing activity to the console')
-    segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0032r_max_gt.png',
                       output_loc="./../data/testfile.txt",
                       visualize=True,
                       simplified=True)
