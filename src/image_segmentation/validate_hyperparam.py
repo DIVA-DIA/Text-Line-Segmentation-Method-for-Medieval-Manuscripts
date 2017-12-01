@@ -12,9 +12,10 @@ from XMLhandler import read_max_textline_from_file
 from textline_extractor import segment_textlines
 
 # Specify the list of parameters to grid-search over.
-param_list = {'eps': [0.01],
-              'min_samples': [5]}
-
+param_list = {'eps': [0.0061],
+              'min_samples': [3, 4]}
+# param_list = {'eps': [10,15,20,25,30,35,40],
+#                'min_samples': [3,4,5]}
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in ['.jpg', '.png'])
@@ -52,15 +53,15 @@ def compute_for_all(arg_container):
     try:
         num_lines = segment_textlines(**params)
     except:
-        print('Textline segmentor is not happy!')
-        logs = []
+        print("Failed for some reason")
         score = 0.0
+        logs = []
         return [params, score, logs]
     pixel_gt = os.path.join(args.gt_folder, filename_without_ext + '.png')
     page_gt = os.path.join(args.gt_folder, filename_without_ext + '.xml')
     num_gt_lines = read_max_textline_from_file(page_gt)
 
-    if num_gt_lines == num_lines:
+    if True or num_gt_lines == num_lines:
         p = Popen(['java', '-jar', args.eval_tool,
                    '-igt', pixel_gt,
                    '-xgt', page_gt,
