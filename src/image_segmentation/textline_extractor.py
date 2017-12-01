@@ -3,6 +3,7 @@
 
 # Utils
 import logging
+import os
 
 import cv2
 import numpy as np
@@ -85,7 +86,6 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     filtered_area = filtered_area[np.argsort(centroids[:, 0])]
     centroids = centroids[np.argsort(centroids[:, 0]), :]
 
-
     # Draw centroids [NO_OUTLIERS]
     for i, c in enumerate(centroids):
         # On their location
@@ -103,7 +103,55 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     centroids, labels = cluster(img, centroids, filtered_area, eps, min_samples)
     clusters_lines = draw_clusters(img, centroids, labels)
 
-    
+    #############################################
+    # Compute line width
+    lines_width = []
+
+    points = points_in_line(cc_properties, [centroids[0]])
+    top_line = np.round(np.min(points[:, 0])).astype(np.int)
+    lines_width.append(clusters_lines[0]-top_line)
+
+    for i in range(0, len(clusters_lines)-1):
+        lines_width.append(clusters_lines[i+1] - clusters_lines[i])
+
+    points = points_in_line(cc_properties, [centroids[-1]])
+    bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
+    lines_width.append(bottom_line-clusters_lines[-1])
+
+    # Detect lines too small
+    lines_too_small = abs(lines_width - np.mean(lines_width)) > 1 * np.std(lines_width)
+    lines_too_small = lines_width < 0.75 * np.mean(lines_width)
+
+    # Select lines to be removed
+    index = []
+    if lines_too_small[0]:
+        index.append(0)
+
+    if lines_too_small[-1]:
+        index.append(len(clusters_lines))
+    """
+    for i in range(1, len(lines_too_small)-1):    
+        # Merge all small lines
+        if lines_too_small[i]:
+            # Merge with your smallest neighbor
+            if lines_width[i-1] < lines_width[i+1]:
+                index.append(i-1)
+            else:
+                index.append(i)
+                lines_too_small[i+1] = False
+    """
+    for i in range(0, len(lines_too_small) - 1):
+        # Merge pairs
+        if lines_too_small[i] and lines_too_small[i + 1]:
+            index.append(i)
+            lines_too_small[i] = False
+            lines_too_small[i + 1] = False
+
+    # Merge them by removing the lines
+    clusters_lines = np.delete(clusters_lines, index)
+
+    # Print num clusters
+    print("C:{}".format(len(clusters_lines)+1))
 
     # Draw centroids [AFTER CLUSTERING]
     for i, c in enumerate(centroids):
@@ -324,7 +372,6 @@ def draw_clusters(img, centroids, labels):
             cv2.line(img, tuple([0, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
                      tuple([4000, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
                      color=(0, 127, 0), thickness=4, lineType=8, shift=0)
-    print("C:{}".format(n_clusters))
     return clusters_lines
 
 
@@ -382,6 +429,8 @@ if __name__ == "__main__":
         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
         level=logging.INFO)
     logging.info('Printing activity to the console')
+
+    print("{}".format(os.getcwd()))
     segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0032r_max_gt.png',
                       output_loc="./../data/testfile.txt",
                       visualize=True,
