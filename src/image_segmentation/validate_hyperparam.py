@@ -87,25 +87,37 @@ def main(args):
 
     pool = Pool(args.j)
 
-    for i, params in enumerate(ParameterGrid(param_list)):
-        print('{} of {} parameters processed.'.format(i, len(ParameterGrid(param_list))))
-        results = list(pool.map(compute_for_all, zip(input_images, itertools.repeat(params), itertools.repeat(args))))
-        param_scores.append(results)
+    with open('logs.txt', 'w') as f:
+        for i, params in enumerate(ParameterGrid(param_list)):
+            print('{} of {} parameters processed.'.format(i, len(ParameterGrid(param_list))))
+            results = list(pool.map(compute_for_all, zip(input_images, itertools.repeat(params), itertools.repeat(args))))
+            param_scores.append(results)
+            score = np.average([item[1] for item in results])
+            print('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
+                params['eps'],
+                params['min_samples'],
+                params['merge_ratio'],
+                score))
+            f.write('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
+                params['eps'],
+                params['min_samples'],
+                params['merge_ratio'],
+                score))
     pool.close()
 
-    score_matrix = []
-    with open('logs.txt', 'w') as f:
-        for param_set in param_scores:
-            eps = param_set[0][0]['eps']
-            min_samples = param_set[0][0]['min_samples']
-            merge_ratio = param_set[0][0]['merge_ratio']
-            score = np.average([item[1] for item in param_set])
-            f.write('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
-                eps,
-                min_samples,
-                merge_ratio,
-                score))
-            score_matrix.append([eps, min_samples, merge_ratio, score])
+    # score_matrix = []
+    # with open('logs.txt', 'w') as f:
+    #     for param_set in param_scores:
+    #         eps = param_set[0][0]['eps']
+    #         min_samples = param_set[0][0]['min_samples']
+    #         merge_ratio = param_set[0][0]['merge_ratio']
+    #         score = np.average([item[1] for item in param_set])
+    #         f.write('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
+    #             eps,
+    #             min_samples,
+    #             merge_ratio,
+    #             score))
+    #         score_matrix.append([eps, min_samples, merge_ratio, score])
 
     np.save('param_scores.npy', param_scores)
     print('Total time taken: {:.2f}'.format(time.time() - tic))

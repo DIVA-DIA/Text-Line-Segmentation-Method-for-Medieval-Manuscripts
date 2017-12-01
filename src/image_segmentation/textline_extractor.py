@@ -160,7 +160,7 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     clusters_lines = np.delete(clusters_lines, index)
 
     # Print num clusters
-    print("C:{}".format(len(clusters_lines)+1))
+    # print("C:{}".format(len(clusters_lines)+1))
 
     # Draw centroids [AFTER CLUSTERING]
     for i, c in enumerate(centroids):
