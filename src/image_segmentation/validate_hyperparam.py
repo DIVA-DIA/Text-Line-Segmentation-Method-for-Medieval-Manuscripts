@@ -13,9 +13,9 @@ from textline_extractor import segment_textlines
 
 # Specify the list of parameters to grid-search over.
 param_list = {'eps': [0.0061],
-              'min_samples': [3, 4]}
-# param_list = {'eps': [10,15,20,25,30,35,40],
-#                'min_samples': [3,4,5]}
+              'min_samples': [3, 4],
+              'merge_ratio': [0.8]}
+
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in ['.jpg', '.png'])
@@ -46,9 +46,10 @@ def compute_for_all(arg_container):
     filename_without_ext = os.path.basename(input_loc).split('.')[0]
     params['input_loc'] = input_loc
     params['output_loc'] = os.path.join(args.output_path,
-                                        filename_without_ext + '_eps_{}_min_samples_{}.xml'.format(params['eps'],
-                                                                                                   params[
-                                                                                                       'min_samples']))
+                                        filename_without_ext + '_eps_{}_min_samples_{}_merge_ration_{}.xml'.format(
+                                            params['eps'],
+                                            params['min_samples'],
+                                            params['merge_ratio'],))
     output_loc = params['output_loc']
     try:
         num_lines = segment_textlines(**params)
@@ -97,12 +98,14 @@ def main(args):
         for param_set in param_scores:
             eps = param_set[0][0]['eps']
             min_samples = param_set[0][0]['min_samples']
+            merge_ratio = param_set[0][0]['merge_ratio']
             score = np.average([item[1] for item in param_set])
-            f.write('eps: {} min_samples: {} score: {:.2f}\n'.format(
+            f.write('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
                 eps,
                 min_samples,
+                merge_ratio,
                 score))
-            score_matrix.append([eps, min_samples, score])
+            score_matrix.append([eps, min_samples, merge_ratio, score])
 
     np.save('param_scores.npy', param_scores)
     print('Total time taken: {:.2f}'.format(time.time() - tic))
