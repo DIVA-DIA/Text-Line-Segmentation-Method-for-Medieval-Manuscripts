@@ -15,7 +15,7 @@ from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 
-def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplified=True, visualize=False):
+def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ratio=0.75, simplified=True, visualize=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -44,6 +44,15 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     # Find CC
     cc_labels = measure.label(img[:,:,1], background=0)
     cc_properties = measure.regionprops(cc_labels, cache=True)
+
+    #############################################
+    # Cut all horizontally large components into smaller components
+    img[:,:,1] = cut_img(img[:,:,1], cc_properties)
+
+    # Re-find CC
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    #############################################
 
     # Collect CC centroids
     all_centroids = []
@@ -120,7 +129,7 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
 
     # Detect lines too small
     lines_too_small = abs(lines_width - np.mean(lines_width)) > 1 * np.std(lines_width)
-    lines_too_small = lines_width < 0.75 * np.mean(lines_width)
+    lines_too_small = lines_width < merge_ratio * np.mean(lines_width)
 
     # Select lines to be removed
     index = []
@@ -308,9 +317,26 @@ def prepare_image(img):
     return img
 
 
+def cut_img(img, cc_props):
+    avg_area = np.mean([item.area for item in cc_props])
+    big_cc = []
+    for item in cc_props:
+        if item.area > 3 * avg_area:
+            v_size = abs(item.bbox[0] - item.bbox[2])
+            h_size = abs(item.bbox[1] - item.bbox[3])
+            if float(h_size)/v_size > 1.5:
+                big_cc.append(item)
+    for item in big_cc:
+        y1,x1,y2,x2  = item.bbox
+        img[y1:y2, np.round((x1 + x2)/2).astype(int)] = 0
+    return img
+
+
+
+
 def detect_outliers(centroids, area):
     big_enough = area > 0.4 * np.mean(area)
-    small_enough = area < 3 * np.mean(area)
+    # small_enough = area < 3 * np.mean(area)
     small_enough = area>0
     no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
     no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
@@ -431,9 +457,9 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0032r_max_gt.png',
+    segment_textlines(input_loc='/Users/pondenkandath/projects/image_text_segmentation/data/raw/data/CB55/private-m/e-codices_fmb-cb-0055_0019r_max_gt.png',
                       output_loc="./../data/testfile.txt",
-                      visualize=True,
+                      visualize=False,
                       simplified=True)
     logging.info('Terminated')
 
