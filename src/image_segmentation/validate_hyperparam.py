@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import os
+import time
 from multiprocessing import Pool
 from subprocess import Popen, PIPE, STDOUT
 
@@ -48,7 +49,13 @@ def compute_for_all(arg_container):
                                                                                                    params[
                                                                                                        'min_samples']))
     output_loc = params['output_loc']
-    num_lines = segment_textlines(**params)
+    try:
+        num_lines = segment_textlines(**params)
+    except:
+        print('Textline segmentor is not happy!')
+        logs = []
+        score = 0.0
+        return [params, score, logs]
     pixel_gt = os.path.join(args.gt_folder, filename_without_ext + '.png')
     page_gt = os.path.join(args.gt_folder, filename_without_ext + '.xml')
     num_gt_lines = read_max_textline_from_file(page_gt)
@@ -70,7 +77,7 @@ def compute_for_all(arg_container):
 
 def main(args):
     global param_list
-
+    tic = time.time()
     input_images = get_list_images(args.input_folder)
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
@@ -97,6 +104,7 @@ def main(args):
             score_matrix.append([eps, min_samples, score])
 
     np.save('param_scores.npy', param_scores)
+    print('Total time taken: {:.2f}'.format(time.time() - tic))
     return
 
 
