@@ -1,9 +1,0 @@
-shapely
-shapely
-skimage
-click
-Sphinx
-coverage
-awscli
-flake8
-python-dotenv>=0.5.1
