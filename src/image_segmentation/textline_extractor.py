@@ -1,11 +1,12 @@
 """
 """
 
-import cv2
 # Utils
 import logging
-import numpy as np
 import os
+
+import cv2
+import numpy as np
 from XMLhandler import writePAGEfile
 from scipy.spatial import ConvexHull
 from skimage import measure
@@ -14,7 +15,7 @@ from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 
-def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplified=False, visualize=False):
+def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ratio=0.75, simplified=True, visualize=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -32,10 +33,26 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
+    # Show the image to screen
+    if visualize:
+        cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
+        cv2.imshow('image', img)
+        cv2.resizeWindow('image', 1600, 800)
+        cv2.moveWindow('image', 200, 100)
+
     #############################################
     # Find CC
     cc_labels = measure.label(img[:,:,1], background=0)
     cc_properties = measure.regionprops(cc_labels, cache=True)
+
+    #############################################
+    # Cut all horizontally large components into smaller components
+    img[:,:,1] = cut_img(img[:,:,1], cc_properties)
+
+    # Re-find CC
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    #############################################
 
     # Collect CC centroids
     all_centroids = []
@@ -92,26 +109,27 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     #############################################
     # Cluster the points and draw the clusters
     # TODO add the area as 2nd dimensions instead of zeros?
-    centroids_after_clustering, labels = cluster(img, centroids, filtered_area, eps, min_samples)
-    clusters_lines = draw_clusters(img, centroids_after_clustering, labels)
+    centroids, labels = cluster(img, centroids, filtered_area, eps, min_samples)
+    clusters_lines = draw_clusters(img, centroids, labels)
 
     #############################################
     # Compute line width
     lines_width = []
 
-    points = points_in_line(cc_properties, [centroids_after_clustering[0]])
+    points = points_in_line(cc_properties, [centroids[0]])
     top_line = np.round(np.min(points[:, 0])).astype(np.int)
     lines_width.append(clusters_lines[0]-top_line)
 
     for i in range(0, len(clusters_lines)-1):
         lines_width.append(clusters_lines[i+1] - clusters_lines[i])
 
-    points = points_in_line(cc_properties, [centroids_after_clustering[-1]])
+    points = points_in_line(cc_properties, [centroids[-1]])
     bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
     lines_width.append(bottom_line-clusters_lines[-1])
 
     # Detect lines too small
-    lines_too_small = lines_width < 0.7 * np.mean(lines_width)
+    lines_too_small = abs(lines_width - np.mean(lines_width)) > 1 * np.std(lines_width)
+    lines_too_small = lines_width < merge_ratio * np.mean(lines_width)
 
     # Select lines to be removed
     index = []
@@ -142,37 +160,132 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
     clusters_lines = np.delete(clusters_lines, index)
 
     # Print num clusters
-    print("C:{}".format(len(clusters_lines)+1))
+    # print("C:{}".format(len(clusters_lines)+1))
 
     # Draw centroids [AFTER CLUSTERING]
-    for i, c in enumerate(centroids_after_clustering):
+    for i, c in enumerate(centroids):
         if no_outliers[i]:
             # On their location
             cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
                        color=(0, 0, 200), thickness=10, lineType=1, shift=0)
 
-    # Get the polygons around text
-    boxes = []
-    if simplified:
-        boxes = draw_boxes(all_centroids, cc_properties, clusters_lines)
-    else:
-        boxes = draw_contour(all_centroids, cc_properties, centroids_after_clustering, clusters_lines, img)
+    # Restore the outliers removed by clustering
+    no_outliers = detect_outliers(all_centroids[:, 0], area)
+    centroids = all_centroids[no_outliers, :]
+    centroids = centroids[np.argsort(centroids[:, 0]), :]
 
-    # Save bounding box for each row as PAGE file
-    writePAGEfile(output_loc, textLines=boxes)
+    # Separate the centroids in cluster bins
+    clusters_centroids = separate_in_bins(centroids, clusters_lines)
+
+    # ******************************************* *******************************************
+    if simplified:
+
+        boxes = []
+
+        # Separate the centroids in cluster bins WITH ALL CENTROIDS
+        clusters_centroids = separate_in_bins(all_centroids, clusters_lines)
+
+        # Compute upper bound of the text area and add FIRST line
+        points = points_in_line(cc_properties, clusters_centroids[0], fast=True)
+        top_line = np.round(np.min(points[:, 0])).astype(np.int)
+        left = np.round(np.min(points[:, 1])).astype(np.int)
+        right = np.round(np.max(points[:, 1])).astype(np.int)
+        boxes.append("{},{} {},{} {},{} {},{}".format(right, top_line,
+                                                      left, top_line,
+                                                      left, np.floor(clusters_lines[0]).astype(np.int),
+                                                      right, np.floor(clusters_lines[0]).astype(np.int)))
+
+        # Add all intermediate lines (not the first/last ones)
+        for i, line in enumerate(clusters_centroids[1:-1]):
+            points = points_in_line(cc_properties, line, fast=True)
+
+            left = np.round(np.min(points[:, 1])).astype(np.int)
+            top = np.floor(clusters_lines[i]).astype(np.int)
+            right = np.round(np.max(points[:, 1])).astype(np.int)
+            bottom = np.ceil(clusters_lines[i+1]).astype(np.int)
+            boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom, right, bottom))
+
+        # Compute lower bound of the text area and add LAST line
+        points = points_in_line(cc_properties, clusters_centroids[-1], fast=True)
+        bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
+        left = np.round(np.min(points[:, 1])).astype(np.int)
+        right = np.round(np.max(points[:, 1])).astype(np.int)
+        boxes.append("{},{} {},{} {},{} {},{}".format(right, np.ceil(clusters_lines[-1]).astype(np.int),
+                                                      left, np.ceil(clusters_lines[-1]).astype(np.int),
+                                                      left, bottom_line,
+                                                      right, bottom_line))
+
+        # Save bounding box for each row as PAGE file
+        writePAGEfile(output_loc, textLines=boxes)
+    # ******************************************* *******************************************
+    else:
+        # Create a working copy of the image to draw the CC convex hull & so
+        cc_img = np.zeros(img.shape[0:2])
+
+        # Connect the centroid inside each cluster by drawing a white line
+        for line in clusters_centroids:
+            for i in range(0, len(line) - 1):
+                # Draw the line between the centroids
+                cv2.line(img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
+                         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
+                         color=(255, 127, 0), thickness=5, lineType=8, shift=0)
+                # Draw it on the working copy
+                cv2.line(cc_img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
+                         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
+                         color=(255, 255, 255), thickness=5, lineType=8, shift=0)
+                # On their location
+                # cv2.circle(img, tuple([np.round(line[0][i][1]).astype(np.int),
+                #                     np.round(line[0][i][0]).astype(np.int)]), radius=10,
+                #           color=(255, 0, 127), thickness=10, lineType=1, shift=0)
+
+        #############################################
+        # Extract the contour of each CC
+        cc_polygons = []
+        l = 0
+        for line in clusters_centroids:
+            cc_polygons.append([])
+            for c in line:
+                cc = find_cc_from_centroid(c, cc_properties)
+                points = cc.coords[::3, 0:2]
+                hull = ConvexHull(points)
+                cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
+                # for v in hull.vertices:
+                #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
+                cv2.polylines(img, [points[hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
+                # Draw the convex hulls of each CC on the working copy
+                cv2.fillPoly(cc_img, [points[hull.vertices][:, [1, 0]]], color=(255, 255, 255))
+                #cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
+            l += 1
+
+        # TODO at some point it has to be implemented that BLUE CC, (too big, not the too small) has to be dealt with.
+        # TODO the plan is that if the part "invading" another ling DO NOT CROSS the bluish line connecting the centroid,
+        # TODO then the whole CC belongs to such line and we will convex_hull it. OTHERWISE we crop this component on the
+        # TODO median between the two lines (green line separating the clusters)
+
+        # Compute the big polygon matching all of them
+
+
+        #cv2.polylines(img, [boundary.hull.points[boundary.hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
 
     if visualize:
-        cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
+        # Print again
         cv2.imshow('image', img)
-        cv2.resizeWindow('image', 1200, 900)
-        cv2.moveWindow('image', 200, 25)
 
         # Hold on
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
+        # Print workig copy
+        #cv2.imshow('image', cc_img)
+
+        # Hold on
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
+
     # Return the number of clusters
     return len(clusters_lines)+1
+
+
 
 
 
@@ -180,13 +293,13 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, simplifi
 
 
 def prepare_image(img):
-    """
-    img[:, :, 0] = 0
-    img[:, :, 2] = 0
-    locations = np.where(img == 127)
-    img[:, :, 1] = 0
-    img[locations[0], locations[1]] = 255
-    """
+
+    # img[:, :, 0] = 0
+    # img[:, :, 2] = 0
+    # locations = np.where(img == 127)
+    # img[:, :, 1] = 0
+    # img[locations[0], locations[1]] = 255
+
     # Erase green (if any, but shouldn't have values here)
     img[:, :, 1] = 0
     # Find and remove boundaries (set to bg)
@@ -201,20 +314,42 @@ def prepare_image(img):
     # Erase red & blue (so we get rid of everything else, only green will be set)
     img[:, :, 0] = 0
     img[:, :, 2] = 0
-
     return img
+
+
+def cut_img(img, cc_props):
+    avg_area = np.mean([item.area for item in cc_props])
+    big_cc = []
+    for item in cc_props:
+        if item.area > 3 * avg_area:
+            v_size = abs(item.bbox[0] - item.bbox[2])
+            h_size = abs(item.bbox[1] - item.bbox[3])
+            if float(h_size)/v_size > 1.5:
+                big_cc.append(item)
+    for item in big_cc:
+        y1,x1,y2,x2  = item.bbox
+        img[y1:y2, np.round((x1 + x2)/2).astype(int)] = 0
+    return img
+
+
 
 
 def detect_outliers(centroids, area):
     big_enough = area > 0.4 * np.mean(area)
-    #small_enough = area < 3 * np.mean(area)
-    small_enough = area > 0
+    # small_enough = area < 3 * np.mean(area)
+    small_enough = area>0
     no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
     no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
     return no_outliers
 
 
 def cluster(img, centroids, area, eps, min_samples):
+
+    #import matplotlib.pyplot as plt
+
+
+
+
     # Attempt clustering with DBSCAN
     X = centroids[:, 0]
     X = (X - np.min(X)) / (np.max(X) - np.min(X))
@@ -222,7 +357,15 @@ def cluster(img, centroids, area, eps, min_samples):
     tmp = np.zeros((X.shape[0], 2))
     #tmp[:, 1] = area
     tmp[:, 0] = X
+
+    # plt.figure()
+    # plt.scatter(X, area)
+    # plt.show()
+
     X = tmp
+
+
+    #eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
 
     db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
 
@@ -297,125 +440,8 @@ def separate_in_bins(centroids, clusters_lines):
     return clusters_centroids
 
 
-def draw_boxes(all_centroids, cc_properties, clusters_lines):
-    boxes = []
-
-    # Separate the centroids in cluster bins WITH ALL CENTROIDS
-    clusters_centroids = separate_in_bins(all_centroids, clusters_lines)
-    # Compute upper bound of the text area and add FIRST line
-    points = points_in_line(cc_properties, clusters_centroids[0], fast=True)
-    top_line = np.round(np.min(points[:, 0])).astype(np.int)
-    left = np.round(np.min(points[:, 1])).astype(np.int)
-    right = np.round(np.max(points[:, 1])).astype(np.int)
-    boxes.append("{},{} {},{} {},{} {},{}".format(right, top_line,
-                                                  left, top_line,
-                                                  left, np.floor(clusters_lines[0]).astype(np.int),
-                                                  right, np.floor(clusters_lines[0]).astype(np.int)))
-    # Add all intermediate lines (not the first/last ones)
-    for i, line in enumerate(clusters_centroids[1:-1]):
-        points = points_in_line(cc_properties, line, fast=True)
-
-        left = np.round(np.min(points[:, 1])).astype(np.int)
-        top = np.floor(clusters_lines[i]).astype(np.int)
-        right = np.round(np.max(points[:, 1])).astype(np.int)
-        bottom = np.ceil(clusters_lines[i + 1]).astype(np.int)
-        boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom, right, bottom))
-
-    # Compute lower bound of the text area and add LAST line
-    points = points_in_line(cc_properties, clusters_centroids[-1], fast=True)
-    bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
-    left = np.round(np.min(points[:, 1])).astype(np.int)
-    right = np.round(np.max(points[:, 1])).astype(np.int)
-    boxes.append("{},{} {},{} {},{} {},{}".format(right, np.ceil(clusters_lines[-1]).astype(np.int),
-                                                  left, np.ceil(clusters_lines[-1]).astype(np.int),
-                                                  left, bottom_line,
-                                                  right, bottom_line))
-    return boxes
-
-
-def draw_contour(all_centroids, cc_properties, centroids_after_clustering, clusters_lines, img):
-    boxes = []
-
-    # Separate ALL the centroids in cluster bins
-    clusters_centroids = separate_in_bins(all_centroids, clusters_lines)
-
-    #############################################
-    # Compute line medians
-    lines_median = []
-    points = points_in_line(cc_properties, [centroids_after_clustering[0]])
-    top_line = np.round(np.min(points[:, 0])).astype(np.int)
-    lines_median.append(np.round((clusters_lines[0] + top_line) / 2.0).astype(np.int))
-    for i in range(0, len(clusters_lines) - 1):
-        lines_median.append(np.round((clusters_lines[i + 1] + clusters_lines[i]) / 2.0).astype(np.int))
-    points = points_in_line(cc_properties, [centroids_after_clustering[-1]])
-    bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
-    lines_median.append(np.round((bottom_line + clusters_lines[-1]) / 2.0).astype(np.int))
-
-    #############################################
-    # Extract the contour of each CC
-    cc_polygons = []
-    cc_img = []
-    # For all lines
-    for l, line in enumerate(clusters_centroids):
-        # Create a working copy of the image to draw the CC convex hull & so
-        cc_img.append(np.zeros(img.shape[0:2] + (3,), dtype=np.uint8))
-
-        # For each cc in the line
-        cc_polygons.append([])
-        for i, c in enumerate(line):
-            # Draw a line from most-left to the first centroid (might be needed if line starts with a C)
-            #cv2.line(cc_img, tuple([0, np.round(lines_median[l]).astype(np.int)]),
-            #         tuple([4000, np.round(lines_median[l]).astype(np.int)]),
-            #         color=(255, 255, 255), thickness=10, lineType=8, shift=0)
-
-            # Draw the line between the centroids
-            if i < len(line) - 1:
-                # On the image
-                #cv2.line(img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
-                #         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
-                #         color=(255, 127, 0), thickness=10, lineType=8, shift=0)
-                # Draw it on the working copy
-                cv2.line(cc_img[l], tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
-                         tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
-                         color=(255, 255, 255), thickness=10, lineType=8, shift=0)
-
-            # Retrieve the cc and its points
-            cc = find_cc_from_centroid(c, cc_properties)
-            points = cc.coords[:, 0:2]
-            if (len(points) < 100):
-                continue
-
-            # Draw the points on the working copy
-            cc_img[l][points[:, 0], points[:, 1]] = 255
-
-        # Print workig copy
-        """
-        cv2.namedWindow('canvas', flags=cv2.WINDOW_NORMAL)
-        cv2.imshow('canvas', cc_img[l])
-        cv2.resizeWindow('image', 1200, 900)
-        cv2.moveWindow('image', 200, 25)
-
-        # Hold on
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        """
-    #############################################
-    # Querying the new global CC on the working copies
-    for l, line in enumerate(clusters_centroids):
-        cc_img[l] = cv2.cvtColor(cc_img[l], cv2.COLOR_BGR2GRAY)
-        text_line_contour = cv2.findContours(cc_img[l], mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_TC89_L1)
-        text_line_contour = text_line_contour[1][0]
-        # Draw contour on image
-        cv2.polylines(img, [text_line_contour], isClosed=True, thickness=5, color=(0, 255, 255))
-
-        boxes.append("")
-        for point in text_line_contour[::3]:
-            boxes[l] += "{},{} ".format(point[0][1], point[0][0])
-
-    return boxes
-
-
 #######################################################################################################################
+
 if __name__ == "__main__":
     # Set up logging to console
     formatter = logging.Formatter(
@@ -431,8 +457,125 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='./../data/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    segment_textlines(input_loc='/Users/pondenkandath/projects/image_text_segmentation/data/raw/data/CB55/private-m/e-codices_fmb-cb-0055_0019r_max_gt.png',
                       output_loc="./../data/testfile.txt",
-                      visualize=True,
-                      simplified=False)
+                      visualize=False,
+                      simplified=True)
     logging.info('Terminated')
+
+    ################################################################################
+    ################################################################################
+    ################################################################################
+    """
+    from __future__ import print_function
+
+    from sklearn.datasets import make_blobs
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_samples, silhouette_score
+
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+
+    # Generating the sample data from make_blobs
+    # This particular setting has one distinct cluster and 3 clusters placed close
+    # together.
+    X, y = make_blobs(n_samples=500,
+                      n_features=2,
+                      centers=4,
+                      cluster_std=1,
+                      center_box=(-10.0, 10.0),
+                      shuffle=True,
+                      random_state=1)  # For reproducibility
+
+    range_n_clusters = [2, 3, 4, 5, 6]
+
+    for n_clusters in range_n_clusters:
+        # Create a subplot with 1 row and 2 columns
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        fig.set_size_inches(18, 7)
+
+        # The 1st subplot is the silhouette plot
+        # The silhouette coefficient can range from -1, 1 but in this example all
+        # lie within [-0.1, 1]
+        ax1.set_xlim([-0.1, 1])
+        # The (n_clusters+1)*10 is for inserting blank space between silhouette
+        # plots of individual clusters, to demarcate them clearly.
+        ax1.set_ylim([0, len(X) + (n_clusters + 1) * 10])
+
+        # Initialize the clusterer with n_clusters value and a random generator
+        # seed of 10 for reproducibility.
+        clusterer = KMeans(n_clusters=n_clusters, random_state=10)
+        cluster_labels = clusterer.fit_predict(X)
+
+        # The silhouette_score gives the average value for all the samples.
+        # This gives a perspective into the density and separation of the formed
+        # clusters
+        silhouette_avg = silhouette_score(X, cluster_labels)
+        print("For n_clusters =", n_clusters,
+              "The average silhouette_score is :", silhouette_avg)
+
+        # Compute the silhouette scores for each sample
+        sample_silhouette_values = silhouette_samples(X, cluster_labels)
+
+        y_lower = 10
+        for i in range(n_clusters):
+            # Aggregate the silhouette scores for samples belonging to
+            # cluster i, and sort them
+            ith_cluster_silhouette_values = \
+                sample_silhouette_values[cluster_labels == i]
+
+            ith_cluster_silhouette_values.sort()
+
+            size_cluster_i = ith_cluster_silhouette_values.shape[0]
+            y_upper = y_lower + size_cluster_i
+
+            color = cm.spectral(float(i) / n_clusters)
+            ax1.fill_betweenx(np.arange(y_lower, y_upper),
+                              0, ith_cluster_silhouette_values,
+                              facecolor=color, edgecolor=color, alpha=0.7)
+
+            # Label the silhouette plots with their cluster numbers at the middle
+            ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
+
+            # Compute the new y_lower for next plot
+            y_lower = y_upper + 10  # 10 for the 0 samples
+
+        ax1.set_title("The silhouette plot for the various clusters.")
+        ax1.set_xlabel("The silhouette coefficient values")
+        ax1.set_ylabel("Cluster label")
+
+        # The vertical line for average silhouette score of all the values
+        ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
+
+        ax1.set_yticks([])  # Clear the yaxis labels / ticks
+        ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+
+        # 2nd Plot showing the actual clusters formed
+        colors = cm.spectral(cluster_labels.astype(float) / n_clusters)
+        ax2.scatter(X[:, 0], X[:, 1], marker='.', s=30, lw=0, alpha=0.7,
+                    c=colors, edgecolor='k')
+
+        # Labeling the clusters
+        centers = clusterer.cluster_centers_
+        # Draw white circles at cluster centers
+        ax2.scatter(centers[:, 0], centers[:, 1], marker='o',
+                    c="white", alpha=1, s=200, edgecolor='k')
+
+        for i, c in enumerate(centers):
+            ax2.scatter(c[0], c[1], marker='$%d$' % i, alpha=1,
+                        s=50, edgecolor='k')
+
+        ax2.set_title("The visualization of the clustered data.")
+        ax2.set_xlabel("Feature space for the 1st feature")
+        ax2.set_ylabel("Feature space for the 2nd feature")
+
+        plt.suptitle(("Silhouette analysis for KMeans clustering on sample data "
+                      "with n_clusters = %d" % n_clusters),
+                     fontsize=14, fontweight='bold')
+
+        plt.show()
+"""
+
+    ################################################################################
+    ################################################################################
+    ################################################################################
