@@ -37,7 +37,7 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
-    ori_energy_map = create_energy_map(img, filter_size=100)
+    ori_energy_map = create_energy_map(img, filter_size=10)
     show_energy = np.copy(ori_energy_map[0])
 
     for i in range(0, img.shape[0], 10):
@@ -58,41 +58,39 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
         cv2.resizeWindow('image', 1600, 800)
         cv2.moveWindow('image', 200, 100)
 
-    #############################################
-    # Find CC
-    cc_labels = measure.label(img[:, :, 1], background=0)
-    cc_properties = measure.regionprops(cc_labels, cache=True)
+    # find a calc the CC
+    if False:
+        #############################################
+        # Find CC
+        cc_labels = measure.label(img[:, :, 1], background=0)
+        cc_properties = measure.regionprops(cc_labels, cache=True)
 
-    #############################################
-    # Cut all horizontally large components into smaller components
-    img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
+        #############################################
+        # Cut all horizontally large components into smaller components
+        img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
 
-    # Re-find CC
-    cc_labels = measure.label(img[:, :, 1], background=0)
-    cc_properties = measure.regionprops(cc_labels, cache=True)
-    #############################################
+        # Re-find CC
+        cc_labels = measure.label(img[:, :, 1], background=0)
+        cc_properties = measure.regionprops(cc_labels, cache=True)
+        #############################################
 
-    # Collect CC centroids
-    all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
-    all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
+        # Collect CC centroids
+        all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
+        all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
 
-    # Collect CC sizes
-    area = np.asarray([cc.area for cc in cc_properties])
+        # Collect CC sizes
+        area = np.asarray([cc.area for cc in cc_properties])
 
-    # Split cc who are too big
-    for i, c in enumerate(all_centroids):
-        if area[i] > 3 * np.mean(area):
-            cc = find_cc_from_centroid(c, cc_properties)
-            # if abs(cc.orientation) < 3.14 / 4:
-            #     # On their location
-            #     cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=10,
-            #                color=(0, 255, 255), thickness=20, lineType=1, shift=0)
+        # Split cc who are too big
+        for i, c in enumerate(all_centroids):
+            if area[i] > 3 * np.mean(area):
+                cc = find_cc_from_centroid(c, cc_properties)
+                # if abs(cc.orientation) < 3.14 / 4:
+                #     # On their location
+                #     cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=10,
+                #                color=(0, 255, 255), thickness=20, lineType=1, shift=0)
 
-    # blur_image(img, save=True, show=True, save_name="blur_after_cut.png")
-    # use the centroid and the area around it to create the heatmap
-    # start a seam from every pixel to the left to his neighbour at the right
-    # duplicate the pixels which the seams choses
-
+    # drawing centroids and co
     if False:
         # Draw centroids [ALL]
         for c in all_centroids:
