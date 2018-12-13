@@ -9,10 +9,12 @@ import numba
 
 
 @numba.jit()
-def horizontal_seam(energies):
+def horizontal_seam(energies, y):
     height, width = energies.shape[:2]
     previous = 0
     seam = []
+
+    # TODO e.g. quadratic penalty for leaving the given horizontal line
 
     for i in range(0, width, 1):
         col = energies[:, i]
@@ -21,10 +23,10 @@ def horizontal_seam(energies):
             previous = np.argmin(col)
         else:
             top = col[previous - 1] if previous - 1 >= 0 else 1e6
-            middle = col[previous]
+            middle = col[previous] if previous != height else 1e6
             bottom = col[previous + 1] if previous + 1 < height else 1e6
 
-            previous = previous + np.argmin([top, middle, bottom])
+            previous = previous + np.argmin([top, middle, bottom]) #- 1
 
         seam.append([i, previous])
 
@@ -54,7 +56,7 @@ def vertical_seam(energies):
 
 
 def draw_seam(img, seam, show=False):
-    cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 255, 0))
+    cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
     if show:
         cv2.imshow('seam', img)
         cv2.waitKey(0)

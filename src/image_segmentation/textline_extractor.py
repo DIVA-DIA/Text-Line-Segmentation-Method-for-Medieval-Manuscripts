@@ -9,9 +9,10 @@ import cv2
 import numpy as np
 import sys
 from XMLhandler import writePAGEfile
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, distance
 from skimage import measure, transform
 from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import normalize
 
 
 #######################################################################################################################
@@ -37,19 +38,28 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
-    ori_energy_map = create_energy_map(img, filter_size=10)
-    show_energy = np.copy(ori_energy_map[0])
+    ori_energy_map = create_energy_map(img)
 
+    # show_img((ori_enegery_map/max_en) * 255)
+    show_energy = np.copy(ori_energy_map)
+
+    # show_img(show_energy)
+    heatmap = ((np.copy(ori_energy_map) / np.max(ori_energy_map)))
+    heatmap = (np.stack((heatmap, ) * 3, axis=-1)) * 255
+    heatmap = np.array(heatmap, dtype=np.uint8)
+    # show_img(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET))
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
+    # show_img(img)
+
+    # show_img(ori_enegery_map)
     for i in range(0, img.shape[0], 10):
-        energy_map = prepare_energy_map(ori_energy_map[1], i)
-        test = horizontal_seam(energy_map)
-        draw_seam(img, test)
-        draw_seam(show_energy, test)
+        energy_map = prepare_energy(ori_energy_map, i)
+        test = horizontal_seam(energy_map, i)
+        draw_seam(heatmap, test)
+        # draw_seam(heatmap, test)
 
-    cv2.imshow('img', show_energy)
-    # cv2.imwrite("test.png", show_energy)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    show_img(heatmap)
 
     # Show the image to screen
     if visualize:
@@ -58,39 +68,8 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
         cv2.resizeWindow('image', 1600, 800)
         cv2.moveWindow('image', 200, 100)
 
-    # find a calc the CC
-    if False:
-        #############################################
-        # Find CC
-        cc_labels = measure.label(img[:, :, 1], background=0)
-        cc_properties = measure.regionprops(cc_labels, cache=True)
 
-        #############################################
-        # Cut all horizontally large components into smaller components
-        img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
-
-        # Re-find CC
-        cc_labels = measure.label(img[:, :, 1], background=0)
-        cc_properties = measure.regionprops(cc_labels, cache=True)
-        #############################################
-
-        # Collect CC centroids
-        all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
-        all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
-
-        # Collect CC sizes
-        area = np.asarray([cc.area for cc in cc_properties])
-
-        # Split cc who are too big
-        for i, c in enumerate(all_centroids):
-            if area[i] > 3 * np.mean(area):
-                cc = find_cc_from_centroid(c, cc_properties)
-                # if abs(cc.orientation) < 3.14 / 4:
-                #     # On their location
-                #     cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=10,
-                #                color=(0, 255, 255), thickness=20, lineType=1, shift=0)
-
-    # drawing centroids and co
+    # drawing centroids, removing outliers, clustering and calculating the hull
     if False:
         # Draw centroids [ALL]
         for c in all_centroids:
@@ -308,6 +287,8 @@ def prepare_image(img):
     locations = np.where(img == 127)
     img[:, :, 1] = 0
     img[locations[0], locations[1]] = 255
+    locs = np.array(np.where(img == 255))[0:2, ]
+    img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
     # Erase green (if any, but shouldn't have values here)
     # img[:, :, 1] = 0
@@ -328,16 +309,19 @@ def prepare_image(img):
 
 def cut_img(img, cc_props):
     avg_area = np.mean([item.area for item in cc_props])
-    big_cc = []
     for item in cc_props:
-        if item.area > 3 * avg_area:
+        if item.area > 2 * avg_area:
             v_size = abs(item.bbox[0] - item.bbox[2])
             h_size = abs(item.bbox[1] - item.bbox[3])
+            y1, x1, y2, x2 = item.bbox
+
             if float(h_size) / v_size > 1.5:
-                big_cc.append(item)
-    for item in big_cc:
-        y1, x1, y2, x2 = item.bbox
-        img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
+                img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
+            elif float(v_size) / h_size > 1.5:
+                img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
+            else:
+                img[np.round((y1 + y2) / 2).astype(int), np.round((x1 + x2) / 2).astype(int)] = 0
+
     return img
 
 
@@ -442,11 +426,14 @@ def separate_in_bins(centroids, clusters_lines):
     return clusters_centroids
 
 
-def create_energy_map(img, save_name="blur_image.png", save=False, show=False, filter_size=1000):
+def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_size=1000, horizontal=True):
     # motion blur the image
     # generating the kernel
     kernel_motion_blur = np.zeros((filter_size, filter_size))
-    kernel_motion_blur[int((filter_size - 1) / 2), :] = np.ones(filter_size)
+    if horizontal:
+        kernel_motion_blur[int((filter_size - 1) / 2), :] = np.ones(filter_size)
+    else:
+        kernel_motion_blur[:, int((filter_size - 1) / 2)] = np.ones(filter_size)
     kernel_motion_blur = kernel_motion_blur / filter_size
 
     # applying the kernel to the input image
@@ -463,9 +450,104 @@ def create_energy_map(img, save_name="blur_image.png", save=False, show=False, f
     return output, np.sum(output, axis=2)
 
 
-def prepare_energy_map(ori_map, x):
+def create_energy_map(img):
+    # get the cc, all the centroids and the areas of the cc
+    cc, centroids, areas = find_cc_centroids_areas(img)
+
+    # a list of all the pixels in the image as tuple
+    pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
+    centroids = np.asarray([[point[0], point[1]] for point in centroids])
+
+    # normalie between 0 nd 1
+    areas = (areas - np.min(areas)) / (np.max(areas) - np.min(areas))
+
+    # bring it between -1 and 1
+    areas = areas - np.mean(areas)
+
+    # make it all negative
+    areas = - np.abs(areas)
+
+    # scale it with punishment
+    areas *= 500
+
+    # multiply all the distances of a certain centroid with the area as weight.
+    distance_matrix = distance.cdist(XA=pixel_coordinates, XB=centroids)
+
+    # scale down the distance
+    distance_matrix /= 10
+
+    # cap the distance to >= 1
+    distance_matrix[np.where(distance_matrix < 1)] = 1
+
+    energy_background = (((np.ones(areas.shape) * 100) ) / distance_matrix).transpose()
+    energy_background = np.mean(energy_background, axis=0)
+    locs = np.array(np.where(img[:,:,0].reshape(-1) == 0))[0:2, :]
+    energy_text = energy_background / 2
+    energy_text[locs] = 0
+
+    # optional to speed up the method (get all pixels which are in a certain distance of a centroid)
+    # get distance between each pixel and each centroid (because gravity)
+    # sum up the received energy for each pixel
+    energy_map = energy_text + energy_background
+
+    return energy_map.reshape((img.shape[0], img.shape[1]))#.astype(int)
+
+
+def find_cc_centroids_areas(img):
+    #############################################
+    # Find CC
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+
+    #############################################
+    # Cut all large components into smaller components
+    img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
+
+    # Re-find CC
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    #############################################
+
+    # Collect CC centroids
+    all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
+    all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
+
+    # Collect CC sizes
+    all_areas = np.asarray([cc.area for cc in cc_properties])
+
+    return (cc_labels, cc_properties), all_centroids, all_areas
+
+
+def prepare_energy(ori_map, y):
     energy_map = np.copy(ori_map)
 
+    for row in range(energy_map.shape[0]):
+        if row == y:
+            continue
+
+        energy_map[row][0] = sys.maxsize
+        energy_map[row][energy_map.shape[1] - 1] = sys.maxsize
+
+    return energy_map
+
+
+def show_img(img, save=False):
+    cv2.imshow('img', img)
+    if save:
+        cv2.imwrite("test.png", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+# based on skimage
+@DeprecationWarning
+def cast_seam(img, x):
+    # get the energy map
+    # TODO save the map
+    _, energy_map = blur_image(img, filter_size=10)
+
+    # change all the rows, execpt the target row pixel at x (y = 0 && y = height) to int.max
+    # TODO make it nicer
     for row in range(energy_map.shape[0]):
         if row == x:
             continue
@@ -473,7 +555,49 @@ def prepare_energy_map(ori_map, x):
         energy_map[row][0] = sys.maxsize
         energy_map[row][energy_map.shape[1] - 1] = sys.maxsize
 
-    return energy_map
+    return transform.seam_carve(img, energy_map, mode='horizontal', num=1, border=0)
+
+
+# try to find the seam based on the original and the cut image
+@DeprecationWarning
+def find_seam(ori_img, ori_cut_img):
+    # resize the cut image
+    # get the amount of rows to insert
+    amount_rows = ori_img.shape[0] - ori_cut_img.shape[0]
+    # add a line of zeros at the end to resize the image
+    cut_img = np.append(ori_cut_img, np.zeros((amount_rows, ori_cut_img.shape[1], ori_cut_img.shape[2])), axis=0)
+
+    img = np.copy(ori_img)
+    img = np.sum(img, axis=2)
+    img[img == 0] = 2
+
+    # substract the seam carved image from the original one
+    diff = img - np.sum(cut_img, axis=2)
+    coords = [col.argmax() for col in (diff.transpose() != 0)]
+    # coords is shit
+    for idx, val in enumerate(coords):
+        ori_img[val][idx][0] = 255
+
+    return ori_img
+
+
+def blur_energy_map_sc(img):
+    horizontal_blur, _ = blur_image(img, filter_size=800)
+    hori_verti_blur, _ = blur_image(horizontal_blur, filter_size=10, horizontal=False)
+    hori_verti_blur = cv2.add(hori_verti_blur, img)
+    img_energy_map, ori_energy_map = blur_image(hori_verti_blur, filter_size=100)
+    show_energy = np.copy(img_energy_map)
+
+    # cut_img = cast_seam(img, 300)
+    # seam_img = find_seam(img, cut_img)
+
+    for i in range(0, img.shape[0], 10):
+        energy_map = prepare_energy(ori_energy_map, i)
+        test = horizontal_seam(energy_map)
+        draw_seam(img, test)
+        draw_seam(show_energy, test)
+
+    show_img(show_energy)
 
 #######################################################################################################################
 
