@@ -23,10 +23,10 @@ def horizontal_seam(energies, y):
             previous = np.argmin(col)
         else:
             top = col[previous - 1] if previous - 1 >= 0 else 1e6
-            middle = col[previous] if previous != height else 1e6
+            middle = col[previous] # if previous != height else 1e6
             bottom = col[previous + 1] if previous + 1 < height else 1e6
 
-            previous = previous + np.argmin([top, middle, bottom]) #- 1
+            previous = previous + np.argmin([top, middle, bottom]) - 1
 
         seam.append([i, previous])
 

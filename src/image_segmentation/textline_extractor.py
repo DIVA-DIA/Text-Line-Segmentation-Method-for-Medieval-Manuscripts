@@ -38,245 +38,29 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
+    # create the engergy map
     ori_energy_map = create_energy_map(img)
 
     # show_img((ori_enegery_map/max_en) * 255)
-    show_energy = np.copy(ori_energy_map)
+    energy_map_representation = np.copy(ori_energy_map)
 
-    # show_img(show_energy)
+    # visualize the energy map as heatmap
     heatmap = ((np.copy(ori_energy_map) / np.max(ori_energy_map)))
     heatmap = (np.stack((heatmap, ) * 3, axis=-1)) * 255
     heatmap = np.array(heatmap, dtype=np.uint8)
     # show_img(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET))
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
-    # show_img(img)
+    # result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
 
     # show_img(ori_enegery_map)
     for i in range(0, img.shape[0], 10):
         energy_map = prepare_energy(ori_energy_map, i)
+
+        # non-library-seam carving
         test = horizontal_seam(energy_map, i)
         draw_seam(heatmap, test)
-        # draw_seam(heatmap, test)
 
     show_img(heatmap)
-
-    # Show the image to screen
-    if visualize:
-        cv2.namedWindow('image', flags=cv2.WINDOW_NORMAL)
-        cv2.imshow('image', img)
-        cv2.resizeWindow('image', 1600, 800)
-        cv2.moveWindow('image', 200, 100)
-
-
-    # drawing centroids, removing outliers, clustering and calculating the hull
-    if False:
-        # Draw centroids [ALL]
-        for c in all_centroids:
-            # On their location
-            cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
-                       color=(200, 0, 0), thickness=10, lineType=1, shift=0)
-            # On the side
-            cv2.circle(img, tuple([50, np.round(c[0]).astype(np.int)]), radius=2,
-                       color=(200, 0, 0), thickness=2, lineType=1, shift=0)
-
-        #############################################
-        # Discard outliers & sort
-        no_outliers = detect_outliers(all_centroids[:, 0], area)
-        centroids = all_centroids[no_outliers, :]
-        filtered_area = area[no_outliers]
-        filtered_area = filtered_area[np.argsort(centroids[:, 0])]
-        centroids = centroids[np.argsort(centroids[:, 0]), :]
-
-        # Draw centroids [NO_OUTLIERS]
-        for i, c in enumerate(centroids):
-            # On their location
-            cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
-                       color=(0, 200, 0), thickness=10, lineType=1, shift=0)
-            # On the side
-            tmp = (filtered_area - np.min(filtered_area)) / (np.max(filtered_area) - np.min(filtered_area))
-
-            cv2.circle(img, tuple([np.round(100 + tmp[i] * 50).astype(np.int), np.round(c[0]).astype(np.int)]), radius=2,
-                       color=(0, 200, 0), thickness=2, lineType=1, shift=0)
-
-        #############################################
-        # Cluster the points and draw the clusters
-        # TODO add the area as 2nd dimensions instead of zeros?
-        centroids, labels = cluster(img, centroids, filtered_area, eps, min_samples)
-        clusters_lines = draw_clusters(img, centroids, labels)
-
-        #############################################
-        # Compute line width
-        lines_width = []
-
-        points = points_in_line(cc_properties, [centroids[0]])
-        top_line = np.round(np.min(points[:, 0])).astype(np.int)
-        lines_width.append(clusters_lines[0] - top_line)
-
-        for i in range(0, len(clusters_lines) - 1):
-            lines_width.append(clusters_lines[i + 1] - clusters_lines[i])
-
-        points = points_in_line(cc_properties, [centroids[-1]])
-        bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
-        lines_width.append(bottom_line - clusters_lines[-1])
-
-        # Detect lines too small
-        lines_too_small = abs(lines_width - np.mean(lines_width)) > 1 * np.std(lines_width)
-        lines_too_small = lines_width < merge_ratio * np.mean(lines_width)
-
-        # Select lines to be removed
-        index = []
-        if lines_too_small[0]:
-            index.append(0)
-
-        if lines_too_small[-1]:
-            index.append(len(clusters_lines))
-        """
-        for i in range(1, len(lines_too_small)-1):    
-            # Merge all small lines
-            if lines_too_small[i]:
-                # Merge with your smallest neighbor
-                if lines_width[i-1] < lines_width[i+1]:
-                    index.append(i-1)
-                else:
-                    index.append(i)
-                    lines_too_small[i+1] = False
-        """
-        for i in range(0, len(lines_too_small) - 1):
-            # Merge pairs
-            if lines_too_small[i] and lines_too_small[i + 1]:
-                index.append(i)
-                lines_too_small[i] = False
-                lines_too_small[i + 1] = False
-
-        # Merge them by removing the lines
-        clusters_lines = np.delete(clusters_lines, index)
-
-        # Print num clusters
-        # print("C:{}".format(len(clusters_lines)+1))
-
-        # Draw centroids [AFTER CLUSTERING]
-        for i, c in enumerate(centroids):
-            if no_outliers[i]:
-                # On their location
-                cv2.circle(img, tuple(reversed(np.round(c).astype(np.int))), radius=5,
-                           color=(0, 0, 200), thickness=10, lineType=1, shift=0)
-
-        # Restore the outliers removed by clustering
-        no_outliers = detect_outliers(all_centroids[:, 0], area)
-        centroids = all_centroids[no_outliers, :]
-        centroids = centroids[np.argsort(centroids[:, 0]), :]
-
-        # Separate the centroids in cluster bins
-        clusters_centroids = separate_in_bins(centroids, clusters_lines)
-
-        # ******************************************* *******************************************
-        if simplified:
-
-            boxes = []
-
-            # Separate the centroids in cluster bins WITH ALL CENTROIDS
-            clusters_centroids = separate_in_bins(all_centroids, clusters_lines)
-
-            # Compute upper bound of the text area and add FIRST line
-            points = points_in_line(cc_properties, clusters_centroids[0], fast=True)
-            top_line = np.round(np.min(points[:, 0])).astype(np.int)
-            left = np.round(np.min(points[:, 1])).astype(np.int)
-            right = np.round(np.max(points[:, 1])).astype(np.int)
-            boxes.append("{},{} {},{} {},{} {},{}".format(right, top_line,
-                                                          left, top_line,
-                                                          left, np.floor(clusters_lines[0]).astype(np.int),
-                                                          right, np.floor(clusters_lines[0]).astype(np.int)))
-
-            # Add all intermediate lines (not the first/last ones)
-            for i, line in enumerate(clusters_centroids[1:-1]):
-                points = points_in_line(cc_properties, line, fast=True)
-
-                left = np.round(np.min(points[:, 1])).astype(np.int)
-                top = np.floor(clusters_lines[i]).astype(np.int)
-                right = np.round(np.max(points[:, 1])).astype(np.int)
-                bottom = np.ceil(clusters_lines[i + 1]).astype(np.int)
-                boxes.append("{},{} {},{} {},{} {},{}".format(right, top, left, top, left, bottom, right, bottom))
-
-            # Compute lower bound of the text area and add LAST line
-            points = points_in_line(cc_properties, clusters_centroids[-1], fast=True)
-            bottom_line = np.round(np.max(points[:, 0])).astype(np.int)
-            left = np.round(np.min(points[:, 1])).astype(np.int)
-            right = np.round(np.max(points[:, 1])).astype(np.int)
-            boxes.append("{},{} {},{} {},{} {},{}".format(right, np.ceil(clusters_lines[-1]).astype(np.int),
-                                                          left, np.ceil(clusters_lines[-1]).astype(np.int),
-                                                          left, bottom_line,
-                                                          right, bottom_line))
-
-            # Save bounding box for each row as PAGE file
-            writePAGEfile(output_loc, textLines=boxes)
-        # ******************************************* *******************************************
-        else:
-            # Create a working copy of the image to draw the CC convex hull & so
-            cc_img = np.zeros(img.shape[0:2])
-
-            # Connect the centroid inside each cluster by drawing a white line
-            for line in clusters_centroids:
-                for i in range(0, len(line) - 1):
-                    # Draw the line between the centroids
-                    cv2.line(img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
-                             tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
-                             color=(255, 127, 0), thickness=5, lineType=8, shift=0)
-                    # Draw it on the working copy
-                    cv2.line(cc_img, tuple([np.round(line[i][1]).astype(np.int), np.round(line[i][0]).astype(np.int)]),
-                             tuple([np.round(line[i + 1][1]).astype(np.int), np.round(line[i + 1][0]).astype(np.int)]),
-                             color=(255, 255, 255), thickness=5, lineType=8, shift=0)
-                    # On their location
-                    # cv2.circle(img, tuple([np.round(line[0][i][1]).astype(np.int),
-                    #                     np.round(line[0][i][0]).astype(np.int)]), radius=10,
-                    #           color=(255, 0, 127), thickness=10, lineType=1, shift=0)
-
-            #############################################
-            # Extract the contour of each CC
-            cc_polygons = []
-            l = 0
-            for line in clusters_centroids:
-                cc_polygons.append([])
-                for c in line:
-                    cc = find_cc_from_centroid(c, cc_properties)
-                    points = cc.coords[::3, 0:2]
-                    hull = ConvexHull(points)
-                    cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
-                    # for v in hull.vertices:
-                    #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
-                    cv2.polylines(img, [points[hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
-                    # Draw the convex hulls of each CC on the working copy
-                    cv2.fillPoly(cc_img, [points[hull.vertices][:, [1, 0]]], color=(255, 255, 255))
-                    # cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
-                l += 1
-
-            # TODO at some point it has to be implemented that BLUE CC, (too big, not the too small) has to be dealt with.
-            # TODO the plan is that if the part "invading" another ling DO NOT CROSS the bluish line connecting the centroid,
-            # TODO then the whole CC belongs to such line and we will convex_hull it. OTHERWISE we crop this component on the
-            # TODO median between the two lines (green line separating the clusters)
-
-            # Compute the big polygon matching all of them
-
-            # cv2.polylines(img, [boundary.hull.points[boundary.hull.vertices][:, [1, 0]]], isClosed=True, thickness=5, color=(0, 255, 255))
-
-        if visualize:
-            # Print again
-            cv2.imshow('image', img)
-
-            # Hold on
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
-            # Print workig copy
-            # cv2.imshow('image', cc_img)
-
-            # Hold on
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
-
-        # Return the number of clusters
-        return len(clusters_lines) + 1
-
 
 #######################################################################################################################
 
@@ -309,8 +93,10 @@ def prepare_image(img):
 
 def cut_img(img, cc_props):
     avg_area = np.mean([item.area for item in cc_props])
+    avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_props])
+    avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_props])
     for item in cc_props:
-        if item.area > 2 * avg_area:
+        if item.area > 3 * avg_area or item.bbox[2] - item.bbox[0] > 3 * avg_height or item.bbox[3] - item.bbox[1] > 3 * avg_width:
             v_size = abs(item.bbox[0] - item.bbox[2])
             h_size = abs(item.bbox[1] - item.bbox[3])
             y1, x1, y2, x2 = item.bbox
@@ -320,17 +106,23 @@ def cut_img(img, cc_props):
             elif float(v_size) / h_size > 1.5:
                 img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
             else:
-                img[np.round((y1 + y2) / 2).astype(int), np.round((x1 + x2) / 2).astype(int)] = 0
+                # img[np.round((y1 + y2) / 2).astype(int), np.round((x1 + x2) / 2).astype(int)] = 0
+                img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
+                img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
 
     return img
 
 
-def detect_outliers(centroids, area):
-    big_enough = area > 0.4 * np.mean(area)
-    # small_enough = area < 3 * np.mean(area)
-    small_enough = area > 0
-    no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
-    no_outliers = [x & y & z for (x, y, z) in zip(big_enough, small_enough, no_y)]
+def detect_outliers(area):
+    too_big = abs(area + np.mean(area)) < 3 * np.std(area)
+    too_small = abs(area - np.mean(area)) < 3 * np.std(area)
+
+    # too_big = area > (0.4 * np.mean(area))
+    # too_small = area < 3 * np.mean(area)
+    # too_small = area > 0
+    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
+
+    no_outliers = [x & y for (x, y) in zip(too_big, too_small)]
     return no_outliers
 
 
@@ -458,7 +250,7 @@ def create_energy_map(img):
     pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
     centroids = np.asarray([[point[0], point[1]] for point in centroids])
 
-    # normalie between 0 nd 1
+    # normalise between 0 nd 1
     areas = (areas - np.min(areas)) / (np.max(areas) - np.min(areas))
 
     # bring it between -1 and 1
@@ -470,25 +262,34 @@ def create_energy_map(img):
     # scale it with punishment
     areas *= 500
 
+    # horizontal and vertical weights
+    h_weight = 3
+    v_weight = 1
     # multiply all the distances of a certain centroid with the area as weight.
-    distance_matrix = distance.cdist(XA=pixel_coordinates, XB=centroids)
-
-    # scale down the distance
-    distance_matrix /= 10
+    metric = lambda u, v: np.sqrt((((h_weight * u)-(v_weight * v))**2).sum())
+    distance_matrix = distance.cdist(pixel_coordinates, centroids, metric)
 
     # cap the distance to >= 1
     distance_matrix[np.where(distance_matrix < 1)] = 1
 
-    energy_background = (((np.ones(areas.shape) * 100) ) / distance_matrix).transpose()
+    # scale down the distance
+    distance_matrix /= 15
+
+    # make sure the distance is > 0
+    distance_matrix += 1
+
+    # We give all centroids the same energy (100)
+    energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
     energy_background = np.mean(energy_background, axis=0)
-    locs = np.array(np.where(img[:,:,0].reshape(-1) == 0))[0:2, :]
+    # get the text location
+    locs = np.array(np.where(img[:, :, 0].reshape(-1) == 0))[0:2, :]
     energy_text = energy_background / 2
     energy_text[locs] = 0
 
     # optional to speed up the method (get all pixels which are in a certain distance of a centroid)
     # get distance between each pixel and each centroid (because gravity)
     # sum up the received energy for each pixel
-    energy_map = energy_text + energy_background
+    energy_map = energy_background + energy_text
 
     return energy_map.reshape((img.shape[0], img.shape[1]))#.astype(int)
 
@@ -499,14 +300,19 @@ def find_cc_centroids_areas(img):
     cc_labels = measure.label(img[:, :, 1], background=0)
     cc_properties = measure.regionprops(cc_labels, cache=True)
 
-    #############################################
-    # Cut all large components into smaller components
-    img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
+    amount_of_properties = 0
 
-    # Re-find CC
-    cc_labels = measure.label(img[:, :, 1], background=0)
-    cc_properties = measure.regionprops(cc_labels, cache=True)
-    #############################################
+    while amount_of_properties != len(cc_properties):
+    # for _ in range(2):
+        amount_of_properties = len(cc_properties)
+        #############################################
+        # Cut all large components into smaller components
+        img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
+
+        # Re-find CC
+        cc_labels = measure.label(img[:, :, 1], background=0)
+        cc_properties = measure.regionprops(cc_labels, cache=True)
+        #############################################
 
     # Collect CC centroids
     all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
@@ -514,6 +320,21 @@ def find_cc_centroids_areas(img):
 
     # Collect CC sizes
     all_areas = np.asarray([cc.area for cc in cc_properties])
+
+    # Discard outliers & sort
+    no_outliers = detect_outliers(all_areas)
+    centroids = all_centroids[no_outliers, :]
+    filtered_area = all_areas[no_outliers]
+    all_areas = filtered_area[np.argsort(centroids[:, 0])]
+    all_centroids = centroids[np.argsort(centroids[:, 0]), :]
+
+    # discard outliers
+    # big_enough = all_areas > 0.4 * np.mean(all_areas)
+    # small_enough = all_areas > 0
+    # no_outliers = [x & y for (x, y) in zip(big_enough, small_enough)]
+    # all_centroids = all_centroids[no_outliers, :]
+    #
+    # all_areas = all_areas[no_outliers]
 
     return (cc_labels, cc_properties), all_centroids, all_areas
 
@@ -540,26 +361,11 @@ def show_img(img, save=False):
 
 
 # based on skimage
-@DeprecationWarning
-def cast_seam(img, x):
-    # get the energy map
-    # TODO save the map
-    _, energy_map = blur_image(img, filter_size=10)
-
-    # change all the rows, execpt the target row pixel at x (y = 0 && y = height) to int.max
-    # TODO make it nicer
-    for row in range(energy_map.shape[0]):
-        if row == x:
-            continue
-
-        energy_map[row][0] = sys.maxsize
-        energy_map[row][energy_map.shape[1] - 1] = sys.maxsize
-
+def cast_seam(img, energy_map):
     return transform.seam_carve(img, energy_map, mode='horizontal', num=1, border=0)
 
 
 # try to find the seam based on the original and the cut image
-@DeprecationWarning
 def find_seam(ori_img, ori_cut_img):
     # resize the cut image
     # get the amount of rows to insert
