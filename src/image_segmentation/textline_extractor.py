@@ -16,7 +16,7 @@ from sklearn.preprocessing import normalize
 
 
 #######################################################################################################################
-from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
+from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
 def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ratio=0.75, simplified=True,
@@ -38,8 +38,14 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     # Prepare image (filter only text, ...)
     img = prepare_image(img)
 
+    # TODO for testing
+    # blur_energy_map_sc(img)
+
     # create the engergy map
     ori_energy_map = create_energy_map(img)
+
+    # bidirectional energy map
+    # bi_energy_map = build_seam_energy_map(ori_energy_map)
 
     # show_img((ori_enegery_map/max_en) * 255)
     energy_map_representation = np.copy(ori_energy_map)
@@ -53,11 +59,11 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     # result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
 
     # show_img(ori_enegery_map)
-    for i in range(0, img.shape[0], 10):
+    for i in range(0, img.shape[0], 20):
         energy_map = prepare_energy(ori_energy_map, i)
 
         # non-library-seam carving
-        test = horizontal_seam(energy_map, i)
+        test = horizontal_seam(energy_map)
         draw_seam(heatmap, test)
 
     show_img(heatmap)
@@ -96,7 +102,7 @@ def cut_img(img, cc_props):
     avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_props])
     avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_props])
     for item in cc_props:
-        if item.area > 3 * avg_area or item.bbox[2] - item.bbox[0] > 3 * avg_height or item.bbox[3] - item.bbox[1] > 3 * avg_width:
+        if item.area > 2.8 * avg_area or item.bbox[2] - item.bbox[0] > 2.8 * avg_height or item.bbox[3] - item.bbox[1] > 2.8 * avg_width:
             v_size = abs(item.bbox[0] - item.bbox[2])
             h_size = abs(item.bbox[1] - item.bbox[3])
             y1, x1, y2, x2 = item.bbox
@@ -114,8 +120,8 @@ def cut_img(img, cc_props):
 
 
 def detect_outliers(area):
-    too_big = abs(area + np.mean(area)) < 3 * np.std(area)
-    too_small = abs(area - np.mean(area)) < 3 * np.std(area)
+    too_big = abs(area + np.mean(area)) < 5 * np.std(area)
+    too_small = abs(area - np.mean(area)) < 5 * np.std(area)
 
     # too_big = area > (0.4 * np.mean(area))
     # too_small = area < 3 * np.mean(area)
@@ -265,9 +271,15 @@ def create_energy_map(img):
     # horizontal and vertical weights
     h_weight = 3
     v_weight = 1
+
+    # build ellipsoid
+    creating_ellipsoid(img, pixel_coordinates)
+
     # multiply all the distances of a certain centroid with the area as weight.
-    metric = lambda u, v: np.sqrt((((h_weight * u)-(v_weight * v))**2).sum())
-    distance_matrix = distance.cdist(pixel_coordinates, centroids, metric)
+    # metric = lambda u, v: np.sqrt(np.sum((h_weight * u - v_weight * v)**2))
+    # metric = np.vectorize(metric)
+    # distance_matrix = [metric(centroid, pixel) for centroid in centroids for pixel in pixel_coordinates]
+    distance_matrix = distance.cdist(pixel_coordinates, centroids)
 
     # cap the distance to >= 1
     distance_matrix[np.where(distance_matrix < 1)] = 1
@@ -280,7 +292,7 @@ def create_energy_map(img):
 
     # We give all centroids the same energy (100)
     energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
-    energy_background = np.mean(energy_background, axis=0)
+    energy_background = np.max(energy_background, axis=0)
     # get the text location
     locs = np.array(np.where(img[:, :, 0].reshape(-1) == 0))[0:2, :]
     energy_text = energy_background / 2
@@ -292,6 +304,11 @@ def create_energy_map(img):
     energy_map = energy_background + energy_text
 
     return energy_map.reshape((img.shape[0], img.shape[1]))#.astype(int)
+
+
+def creating_ellipsoid(img, pixel_coordinates):
+    ellipsoid = np.zeros((img.shape[0], np.ceil(img.shape[1] / 2).astype(int)))
+    ellipsoid_centroid = [[np.ceil(img.shape[0] / 2), 0]]
 
 
 def find_cc_centroids_areas(img):
@@ -340,14 +357,21 @@ def find_cc_centroids_areas(img):
 
 
 def prepare_energy(ori_map, y):
+    """
+    Sets the left and right border of the matrix to int.MAX except at y.
+
+    :param ori_map:
+    :param y:
+    :return:
+    """
     energy_map = np.copy(ori_map)
 
     for row in range(energy_map.shape[0]):
         if row == y:
             continue
 
-        energy_map[row][0] = sys.maxsize
-        energy_map[row][energy_map.shape[1] - 1] = sys.maxsize
+        energy_map[row][0] = sys.maxsize / 2
+        energy_map[row][energy_map.shape[1] - 1] = sys.maxsize / 2
 
     return energy_map
 
@@ -398,9 +422,7 @@ def blur_energy_map_sc(img):
     # seam_img = find_seam(img, cut_img)
 
     for i in range(0, img.shape[0], 10):
-        energy_map = prepare_energy(ori_energy_map, i)
-        test = horizontal_seam(energy_map)
-        draw_seam(img, test)
+        test = horizontal_seam(ori_energy_map, i)
         draw_seam(show_energy, test)
 
     show_img(show_energy)
