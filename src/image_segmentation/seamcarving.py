@@ -9,11 +9,11 @@ import numba
     homepage: http://www.faculty.idc.ac.il/arik/SCWeb/imret/
 """
 
-penalty = False
-penalty_div = 1000
+penalty = True
+penalty_div = 3000
 
 
-#@numba.jit()
+@numba.jit()
 def horizontal_seam(energies):
     height, width = energies.shape[:2]
     # the y position we started

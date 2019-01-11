@@ -14,13 +14,11 @@ from skimage import measure, transform
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import normalize
 
-
 #######################################################################################################################
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
-def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ratio=0.75, simplified=True,
-                      visualize=False):
+def segment_textlines(input_loc):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -36,13 +34,13 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     img = cv2.imread(input_loc)
 
     # Prepare image (filter only text, ...)
-    img = prepare_image(img)
+    img = prepare_image(img, cropping=False)
 
     # TODO for testing
     # blur_energy_map_sc(img)
 
     # create the engergy map
-    ori_energy_map = create_energy_map(img)
+    ori_energy_map = create_energy_map(img, blurring=False, projection=True)
 
     # bidirectional energy map
     # bi_energy_map = build_seam_energy_map(ori_energy_map)
@@ -51,12 +49,8 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
     energy_map_representation = np.copy(ori_energy_map)
 
     # visualize the energy map as heatmap
-    heatmap = ((np.copy(ori_energy_map) / np.max(ori_energy_map)))
-    heatmap = (np.stack((heatmap, ) * 3, axis=-1)) * 255
-    heatmap = np.array(heatmap, dtype=np.uint8)
-    # show_img(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET))
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-    # result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
+    heatmap = create_heat_map_visualization(ori_energy_map)
+    # heatmap = create_heat_map_visualization(creating_ellipsoid(img))
 
     # show_img(ori_enegery_map)
     for i in range(0, img.shape[0], 20):
@@ -66,19 +60,31 @@ def segment_textlines(input_loc, output_loc, eps=0.0061, min_samples=4, merge_ra
         test = horizontal_seam(energy_map)
         draw_seam(heatmap, test)
 
-    show_img(heatmap)
+    show_img(heatmap, save=False)
+
 
 #######################################################################################################################
 
 
-def prepare_image(img):
+def create_heat_map_visualization(ori_energy_map):
+    heatmap = ((np.copy(ori_energy_map) / np.max(ori_energy_map)))
+    heatmap = (np.stack((heatmap,) * 3, axis=-1)) * 255
+    heatmap = np.array(heatmap, dtype=np.uint8)
+    # show_img(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET))
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    # result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
+    return heatmap
+
+
+def prepare_image(img, cropping=True):
     img[:, :, 0] = 0
     img[:, :, 2] = 0
     locations = np.where(img == 127)
     img[:, :, 1] = 0
     img[locations[0], locations[1]] = 255
-    locs = np.array(np.where(img == 255))[0:2, ]
-    img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
+    if cropping:
+        locs = np.array(np.where(img == 255))[0:2, ]
+        img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
     # Erase green (if any, but shouldn't have values here)
     # img[:, :, 1] = 0
@@ -102,7 +108,8 @@ def cut_img(img, cc_props):
     avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_props])
     avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_props])
     for item in cc_props:
-        if item.area > 2.8 * avg_area or item.bbox[2] - item.bbox[0] > 2.8 * avg_height or item.bbox[3] - item.bbox[1] > 2.8 * avg_width:
+        if item.area > 2.8 * avg_area or item.bbox[2] - item.bbox[0] > 2.8 * avg_height or item.bbox[3] - item.bbox[
+            1] > 2.8 * avg_width:
             v_size = abs(item.bbox[0] - item.bbox[2])
             h_size = abs(item.bbox[1] - item.bbox[3])
             y1, x1, y2, x2 = item.bbox
@@ -245,10 +252,10 @@ def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_s
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    return output, np.sum(output, axis=2)
+    return output  #, np.sum(output, axis=2)
 
 
-def create_energy_map(img):
+def create_energy_map(img, blurring=True, projection=True):
     # get the cc, all the centroids and the areas of the cc
     cc, centroids, areas = find_cc_centroids_areas(img)
 
@@ -268,12 +275,8 @@ def create_energy_map(img):
     # scale it with punishment
     areas *= 500
 
-    # horizontal and vertical weights
-    h_weight = 3
-    v_weight = 1
-
     # build ellipsoid
-    creating_ellipsoid(img, pixel_coordinates)
+    # creating_ellipsoid(img)
 
     # multiply all the distances of a certain centroid with the area as weight.
     # metric = lambda u, v: np.sqrt(np.sum((h_weight * u - v_weight * v)**2))
@@ -302,13 +305,50 @@ def create_energy_map(img):
     # get distance between each pixel and each centroid (because gravity)
     # sum up the received energy for each pixel
     energy_map = energy_background + energy_text
+    energy_map = energy_map.reshape(img.shape[0:2])
 
-    return energy_map.reshape((img.shape[0], img.shape[1]))#.astype(int)
+    if blurring:
+        # blur the map
+        blurred_energy_map = blur_image(img=energy_map, filter_size=300)
+        energy_map = blurred_energy_map + energy_text.reshape(img.shape[0:2])
+
+    if projection:
+        # creating the horizontal projection profile
+        projection_profile = np.sum(energy_map, axis=1)
+        # normalize it between 0-1
+        projection_profile = (projection_profile - np.min(projection_profile)) / (np.max(projection_profile) - np.min(projection_profile))
+        # scale it between 0 and max(energy_map) / 2
+        projection_profile *= np.max(energy_map) / 2
+
+        # blur projection profile
+        projection_matrix = np.zeros(img.shape[0:2])
+        projection_matrix = (projection_matrix.transpose() + projection_profile).transpose()
+        projection_matrix = blur_image(projection_matrix, filter_size=1000)
+
+        # overlap it with the normal energy map and add the text energy
+        energy_map = energy_map + projection_matrix + energy_text.reshape(img.shape[0:2])
+
+    return energy_map
 
 
-def creating_ellipsoid(img, pixel_coordinates):
-    ellipsoid = np.zeros((img.shape[0], np.ceil(img.shape[1] / 2).astype(int)))
-    ellipsoid_centroid = [[np.ceil(img.shape[0] / 2), 0]]
+def creating_ellipsoid(img):
+    # horizontal and vertical weights
+    h_weight = 1
+    v_weight = 50
+
+    # a list with all pixel coordinates
+    pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
+
+    ellipsoid = np.zeros(img.shape[0:2])
+    ellipsoid_centroid = np.asarray([[0, 0]])
+    ellipsoid_base_block = distance.cdist(pixel_coordinates, ellipsoid_centroid, metric=get_metric(h_weight, v_weight))
+    ellipsoid_base_block = ellipsoid_base_block.reshape(img.shape[0:2])
+
+    return ellipsoid_base_block
+
+
+def get_metric(h_w, v_w):
+    return lambda u, v: np.sqrt(((u * v_w - v * h_w) ** 2).sum())
 
 
 def find_cc_centroids_areas(img):
@@ -320,7 +360,7 @@ def find_cc_centroids_areas(img):
     amount_of_properties = 0
 
     while amount_of_properties != len(cc_properties):
-    # for _ in range(2):
+        # for _ in range(2):
         amount_of_properties = len(cc_properties)
         #############################################
         # Cut all large components into smaller components
@@ -427,6 +467,7 @@ def blur_energy_map_sc(img):
 
     show_img(show_energy)
 
+
 #######################################################################################################################
 
 if __name__ == "__main__":
@@ -444,8 +485,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='../data/test1.png',
-                      output_loc="./../data/testfile.txt",
-                      visualize=True,
-                      simplified=True)
+    segment_textlines(input_loc='../data/test1.png')
     logging.info('Terminated')
