@@ -4,6 +4,7 @@
 # Utils
 import logging
 import os
+import time
 
 import cv2
 import numpy as np
@@ -46,37 +47,51 @@ def segment_textlines(input_loc):
     # bi_energy_map = build_seam_energy_map(ori_energy_map)
 
     # show_img((ori_enegery_map/max_en) * 255)
-    energy_map_representation = np.copy(ori_energy_map)
+    # energy_map_representation = np.copy(ori_energy_map)
 
     # visualize the energy map as heatmap
     heatmap = create_heat_map_visualization(ori_energy_map)
-    # heatmap = create_heat_map_visualization(creating_ellipsoid(img))
+    # heatmap = create_heat_map_visualization(create_distance_matrix((1000, 1000), [[1, 1], [20, 20], [50, 80]], side_length=100).reshape((1000, 1000)))
 
     # show_img(ori_enegery_map)
     for i in range(0, img.shape[0], 20):
         energy_map = prepare_energy(ori_energy_map, i)
 
         # non-library-seam carving
-        test = horizontal_seam(energy_map)
+        test = horizontal_seam(energy_map, penalty=True, penalty_div=10000)
         draw_seam(heatmap, test)
 
-    show_img(heatmap, save=False)
+    show_img(heatmap, save=True)
 
 
 #######################################################################################################################
 
 
 def create_heat_map_visualization(ori_energy_map):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
     heatmap = ((np.copy(ori_energy_map) / np.max(ori_energy_map)))
     heatmap = (np.stack((heatmap,) * 3, axis=-1)) * 255
     heatmap = np.array(heatmap, dtype=np.uint8)
     # show_img(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET))
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
     # result = cv2.add(cv2.applyColorMap(heatmap, cv2.COLORMAP_JET), img)
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop-start))
+    # -------------------------------
+
     return heatmap
 
 
 def prepare_image(img, cropping=True):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
     img[:, :, 0] = 0
     img[:, :, 2] = 0
     locations = np.where(img == 127)
@@ -100,10 +115,20 @@ def prepare_image(img, cropping=True):
     # # Erase red & blue (so we get rid of everything else, only green will be set)
     # img[:, :, 0] = 0
     # img[:, :, 2] = 0
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop-start))
+    # -------------------------------
+
     return img
 
 
 def cut_img(img, cc_props):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
     avg_area = np.mean([item.area for item in cc_props])
     avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_props])
     avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_props])
@@ -123,10 +148,19 @@ def cut_img(img, cc_props):
                 img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
                 img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
 
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
     return img
 
 
 def detect_outliers(area):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
     too_big = abs(area + np.mean(area)) < 5 * np.std(area)
     too_small = abs(area - np.mean(area)) < 5 * np.std(area)
 
@@ -136,6 +170,12 @@ def detect_outliers(area):
     # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
 
     no_outliers = [x & y for (x, y) in zip(too_big, too_small)]
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
     return no_outliers
 
 
@@ -255,12 +295,60 @@ def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_s
     return output  #, np.sum(output, axis=2)
 
 
+def create_distance_matrix(img_shape, centroids, side_length=500):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
+    template = np.zeros((side_length, side_length))
+    center_template = np.array([[np.ceil(side_length / 2), np.ceil(side_length / 2)]])
+    pixel_coordinates = np.asarray([[x, y] for x in range(template.shape[0]) for y in range(template.shape[1])])
+    distance_matrix = np.ones(img_shape)
+
+    # calculate template
+    template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
+    template[template > np.ceil(side_length / 2)] = 0
+    # round the centroid coordinates to ints to use them as array index
+    centroids = np.rint(centroids).astype(int)
+
+    # create distance matrix
+    # distance_matrix = np.zeros((centroids.shape[0], img_shape[0]*img_shape[1]))
+
+    # for each centroid
+    for centroid in centroids:
+        pos_v, pos_h = (centroid - np.ceil(side_length / 2)).astype(int)  # offset
+        v_range1 = slice(max(0, pos_v), max(min(pos_v + template.shape[0], distance_matrix.shape[0]), 0))
+        h_range1 = slice(max(0, pos_h), max(min(pos_h + template.shape[1], distance_matrix.shape[1]), 0))
+
+        v_range2 = slice(max(0, -pos_v), min(-pos_v + distance_matrix.shape[0], template.shape[0]))
+        h_range2 = slice(max(0, -pos_h), min(-pos_h + distance_matrix.shape[1], template.shape[1]))
+
+        # need max
+        distance_matrix[v_range1, h_range1] = np.maximum(template[v_range2, h_range2], distance_matrix[v_range1, h_range1])
+
+    # distance_matrix = np.array([np.insert(np.zeros(img_shape[0] * img_shape[1]), centroid[1] - np.ceil(template.size / 2)
+    #                                       .astype(int), template)[:img_shape[0] * img_shape[1]] for centroid in centroids])
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
+    # that the rest has not a high energy
+    distance_matrix[np.where(distance_matrix == 1)] = np.max(template)
+
+    # distance_matrix = distance_matrix.reshape((centroids.shape[0], img_shape[0] * img_shape[1]))
+    return distance_matrix.flatten()
+
+
 def create_energy_map(img, blurring=True, projection=True):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
     # get the cc, all the centroids and the areas of the cc
     cc, centroids, areas = find_cc_centroids_areas(img)
 
     # a list of all the pixels in the image as tuple
-    pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
     centroids = np.asarray([[point[0], point[1]] for point in centroids])
 
     # normalise between 0 nd 1
@@ -278,11 +366,10 @@ def create_energy_map(img, blurring=True, projection=True):
     # build ellipsoid
     # creating_ellipsoid(img)
 
-    # multiply all the distances of a certain centroid with the area as weight.
-    # metric = lambda u, v: np.sqrt(np.sum((h_weight * u - v_weight * v)**2))
-    # metric = np.vectorize(metric)
-    # distance_matrix = [metric(centroid, pixel) for centroid in centroids for pixel in pixel_coordinates]
-    distance_matrix = distance.cdist(pixel_coordinates, centroids)
+    # creating distance matrix
+    # pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
+    # distance_matrix = distance.cdist(pixel_coordinates, centroids)
+    distance_matrix = create_distance_matrix(img.shape[0:2], centroids)
 
     # cap the distance to >= 1
     distance_matrix[np.where(distance_matrix < 1)] = 1
@@ -294,8 +381,9 @@ def create_energy_map(img, blurring=True, projection=True):
     distance_matrix += 1
 
     # We give all centroids the same energy (100)
-    energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
-    energy_background = np.max(energy_background, axis=0)
+    energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 100) / distance_matrix).transpose()
+    # energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
+    # energy_background = np.max(energy_background, axis=0)
     # get the text location
     locs = np.array(np.where(img[:, :, 0].reshape(-1) == 0))[0:2, :]
     energy_text = energy_background / 2
@@ -328,6 +416,11 @@ def create_energy_map(img, blurring=True, projection=True):
         # overlap it with the normal energy map and add the text energy
         energy_map = energy_map + projection_matrix + energy_text.reshape(img.shape[0:2])
 
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
     return energy_map
 
 
@@ -352,6 +445,9 @@ def get_metric(h_w, v_w):
 
 
 def find_cc_centroids_areas(img):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
     #############################################
     # Find CC
     cc_labels = measure.label(img[:, :, 1], background=0)
@@ -393,6 +489,11 @@ def find_cc_centroids_areas(img):
     #
     # all_areas = all_areas[no_outliers]
 
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
     return (cc_labels, cc_properties), all_centroids, all_areas
 
 
@@ -419,7 +520,7 @@ def prepare_energy(ori_map, y):
 def show_img(img, save=False):
     cv2.imshow('img', img)
     if save:
-        cv2.imwrite("test.png", img)
+        cv2.imwrite("experiment.png", img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
