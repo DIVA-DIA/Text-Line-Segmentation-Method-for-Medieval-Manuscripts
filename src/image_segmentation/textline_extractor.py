@@ -45,7 +45,7 @@ def segment_textlines(input_loc):
     # blur_energy_map_sc(img)
 
     # create the engergy map
-    ori_energy_map = create_energy_map(img, blurring=False, projection=True)
+    ori_energy_map = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
     # bidirectional energy map
     # bi_energy_map = build_seam_energy_map(ori_energy_map)
@@ -108,29 +108,29 @@ def prepare_image(img, cropping=True):
     start = time.time()
     # -------------------------------
 
-    # img[:, :, 0] = 0
-    # img[:, :, 2] = 0
-    # locations = np.where(img == 127)
-    # img[:, :, 1] = 0
-    # img[locations[0], locations[1]] = 255
-    # if cropping:
-    #     locs = np.array(np.where(img == 255))[0:2, ]
-    #     img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
-
-    # Erase green (if any, but shouldn't have values here)
-    img[:, :, 1] = 0
-    # Find and remove boundaries (set to bg)
-    boundaries = np.where(img == 128)
-    img[boundaries[0], boundaries[1]] = 0
-    # Find regular text and make it white
-    locations = np.where(img == 8)
-    img[locations[0], locations[1]] = 128
-    # Find text+decoration and make it white
-    locations = np.where(img == 12)
-    img[locations[0], locations[1]] = 128
-    # Erase red & blue (so we get rid of everything else, only green will be set)
     img[:, :, 0] = 0
     img[:, :, 2] = 0
+    locations = np.where(img == 127)
+    img[:, :, 1] = 0
+    img[locations[0], locations[1]] = 255
+    if cropping:
+        locs = np.array(np.where(img == 255))[0:2, ]
+        img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
+
+    # # Erase green (if any, but shouldn't have values here)
+    # img[:, :, 1] = 0
+    # # Find and remove boundaries (set to bg)
+    # boundaries = np.where(img == 128)
+    # img[boundaries[0], boundaries[1]] = 0
+    # # Find regular text and make it white
+    # locations = np.where(img == 8)
+    # img[locations[0], locations[1]] = 128
+    # # Find text+decoration and make it white
+    # locations = np.where(img == 12)
+    # img[locations[0], locations[1]] = 128
+    # # Erase red & blue (so we get rid of everything else, only green will be set)
+    # img[:, :, 0] = 0
+    # img[:, :, 2] = 0
 
     # -------------------------------
     stop = time.time()
@@ -311,7 +311,11 @@ def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_s
     return output  #, np.sum(output, axis=2)
 
 
-def create_distance_matrix(img_shape, centroids, side_length=1000):
+def calculate_asymmetric_distance(x, y, h_weight=1, v_weight=5):
+    return [np.sqrt(((y[0] - x[0][0]) ** 2) * v_weight + ((y[1] - x[0][1]) ** 2) * h_weight)]
+
+
+def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1000):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -321,7 +325,13 @@ def create_distance_matrix(img_shape, centroids, side_length=1000):
     pixel_coordinates = np.asarray([[x, y] for x in range(template.shape[0]) for y in range(template.shape[1])])
 
     # calculate template
-    template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
+    if asymmetric:
+        template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates])\
+            .flatten().reshape((side_length, side_length))
+    else:
+        template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
+
+    # show_img(create_heat_map_visualization(template))
 
     distance_matrix = np.ones(img_shape) * np.max(template)
     # show_img(create_heat_map_visualization(template))
@@ -357,7 +367,7 @@ def create_distance_matrix(img_shape, centroids, side_length=1000):
     return distance_matrix.flatten()
 
 
-def create_energy_map(img, blurring=True, projection=True):
+def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -385,7 +395,7 @@ def create_energy_map(img, blurring=True, projection=True):
     # creating distance matrix
     # pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
     # distance_matrix = distance.cdist(pixel_coordinates, centroids[0:10])
-    distance_matrix = create_distance_matrix(img.shape[0:2], centroids)
+    distance_matrix = create_distance_matrix(img.shape[0:2], centroids, asymmetric=asymmetric)
 
     # cap the distance to >= 1
     # distance_matrix[np.where(distance_matrix < 1)] = 1
@@ -602,5 +612,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='../data/e-codices_fmb-cb-0055_0032r_max_gt.png')
+    segment_textlines(input_loc='../data/test1.png')
     logging.info('Terminated')
