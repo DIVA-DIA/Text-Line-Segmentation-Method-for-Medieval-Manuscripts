@@ -42,6 +42,7 @@ def horizontal_seam(energies, penalty=True, penalty_div=3000):
     return seam
 
 
+@numba.jit()
 def draw_seam(img, seam, show=False):
     cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
     if show:

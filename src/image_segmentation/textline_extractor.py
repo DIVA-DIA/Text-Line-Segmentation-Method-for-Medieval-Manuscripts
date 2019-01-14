@@ -30,6 +30,10 @@ def segment_textlines(input_loc):
 
     # print("{}".format(read_max_textline_from_file('./../data/e-codices_fmb-cb-0055_0019r_max_gt.xml')))
 
+    # -------------------------------
+    start_whole = time.time()
+    # -------------------------------
+
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
@@ -58,9 +62,21 @@ def segment_textlines(input_loc):
         energy_map = prepare_energy(ori_energy_map, i)
 
         # non-library-seam carving
-        test = horizontal_seam(energy_map, penalty=True, penalty_div=10000)
+        # -------------------------------
+        start = time.time()
+        # -------------------------------
+        test = horizontal_seam(energy_map, penalty=True, penalty_div=3000)
         draw_seam(heatmap, test)
 
+        # -------------------------------
+        stop = time.time()
+        logging.info("finished after: {diff} s".format(diff=stop - start))
+        # -------------------------------
+
+    # -------------------------------
+    stop_whole = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
+    # -------------------------------
     show_img(heatmap, save=True)
 
 
@@ -92,29 +108,29 @@ def prepare_image(img, cropping=True):
     start = time.time()
     # -------------------------------
 
-    img[:, :, 0] = 0
-    img[:, :, 2] = 0
-    locations = np.where(img == 127)
-    img[:, :, 1] = 0
-    img[locations[0], locations[1]] = 255
-    if cropping:
-        locs = np.array(np.where(img == 255))[0:2, ]
-        img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
-
-    # Erase green (if any, but shouldn't have values here)
-    # img[:, :, 1] = 0
-    # # Find and remove boundaries (set to bg)
-    # boundaries = np.where(img == 128)
-    # img[boundaries[0], boundaries[1]] = 0
-    # # Find regular text and make it white
-    # locations = np.where(img == 8)
-    # img[locations[0], locations[1]] = 128
-    # # Find text+decoration and make it white
-    # locations = np.where(img == 12)
-    # img[locations[0], locations[1]] = 128
-    # # Erase red & blue (so we get rid of everything else, only green will be set)
     # img[:, :, 0] = 0
     # img[:, :, 2] = 0
+    # locations = np.where(img == 127)
+    # img[:, :, 1] = 0
+    # img[locations[0], locations[1]] = 255
+    # if cropping:
+    #     locs = np.array(np.where(img == 255))[0:2, ]
+    #     img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
+
+    # Erase green (if any, but shouldn't have values here)
+    img[:, :, 1] = 0
+    # Find and remove boundaries (set to bg)
+    boundaries = np.where(img == 128)
+    img[boundaries[0], boundaries[1]] = 0
+    # Find regular text and make it white
+    locations = np.where(img == 8)
+    img[locations[0], locations[1]] = 128
+    # Find text+decoration and make it white
+    locations = np.where(img == 12)
+    img[locations[0], locations[1]] = 128
+    # Erase red & blue (so we get rid of everything else, only green will be set)
+    img[:, :, 0] = 0
+    img[:, :, 2] = 0
 
     # -------------------------------
     stop = time.time()
@@ -295,7 +311,7 @@ def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_s
     return output  #, np.sum(output, axis=2)
 
 
-def create_distance_matrix(img_shape, centroids, side_length=500):
+def create_distance_matrix(img_shape, centroids, side_length=1000):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -303,16 +319,15 @@ def create_distance_matrix(img_shape, centroids, side_length=500):
     template = np.zeros((side_length, side_length))
     center_template = np.array([[np.ceil(side_length / 2), np.ceil(side_length / 2)]])
     pixel_coordinates = np.asarray([[x, y] for x in range(template.shape[0]) for y in range(template.shape[1])])
-    distance_matrix = np.ones(img_shape)
 
     # calculate template
     template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
-    template[template > np.ceil(side_length / 2)] = 0
+
+    distance_matrix = np.ones(img_shape) * np.max(template)
+    # show_img(create_heat_map_visualization(template))
+    # template[template > np.ceil(side_length / 2)] = np.max(template) * 2
     # round the centroid coordinates to ints to use them as array index
     centroids = np.rint(centroids).astype(int)
-
-    # create distance matrix
-    # distance_matrix = np.zeros((centroids.shape[0], img_shape[0]*img_shape[1]))
 
     # for each centroid
     for centroid in centroids:
@@ -324,7 +339,8 @@ def create_distance_matrix(img_shape, centroids, side_length=500):
         h_range2 = slice(max(0, -pos_h), min(-pos_h + distance_matrix.shape[1], template.shape[1]))
 
         # need max
-        distance_matrix[v_range1, h_range1] = np.maximum(template[v_range2, h_range2], distance_matrix[v_range1, h_range1])
+        distance_matrix[v_range1, h_range1] = np.minimum(template[v_range2, h_range2], distance_matrix[v_range1, h_range1])
+        # show_img(create_heat_map_visualization(distance_matrix))
 
     # distance_matrix = np.array([np.insert(np.zeros(img_shape[0] * img_shape[1]), centroid[1] - np.ceil(template.size / 2)
     #                                       .astype(int), template)[:img_shape[0] * img_shape[1]] for centroid in centroids])
@@ -368,11 +384,11 @@ def create_energy_map(img, blurring=True, projection=True):
 
     # creating distance matrix
     # pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
-    # distance_matrix = distance.cdist(pixel_coordinates, centroids)
+    # distance_matrix = distance.cdist(pixel_coordinates, centroids[0:10])
     distance_matrix = create_distance_matrix(img.shape[0:2], centroids)
 
     # cap the distance to >= 1
-    distance_matrix[np.where(distance_matrix < 1)] = 1
+    # distance_matrix[np.where(distance_matrix < 1)] = 1
 
     # scale down the distance
     distance_matrix /= 15
@@ -586,5 +602,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='../data/test1.png')
+    segment_textlines(input_loc='../data/e-codices_fmb-cb-0055_0032r_max_gt.png')
     logging.info('Terminated')
