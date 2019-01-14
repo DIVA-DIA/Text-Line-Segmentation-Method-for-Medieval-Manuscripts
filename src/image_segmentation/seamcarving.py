@@ -26,9 +26,9 @@ def horizontal_seam(energies, penalty=True, penalty_div=3000):
         if i == 0:
             ori_y = previous = np.argmin(col)
         else:
-            top = col[previous - 1] if previous - 1 >= 0 else 1e6
+            top = col[previous - 1] if previous - 1 >= 0 else sys.maxsize
             middle = col[previous]  # if previous != height else 1e6
-            bottom = col[previous + 1] if previous + 1 < height else 1e6
+            bottom = col[previous + 1] if previous + 1 < height else sys.maxsize
 
             if penalty:
                 top += ((ori_y - (previous - 1)) ** 2) / penalty_div

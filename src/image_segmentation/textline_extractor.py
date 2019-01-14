@@ -38,46 +38,48 @@ def segment_textlines(input_loc):
     # Load the image
     img = cv2.imread(input_loc)
 
-    # Prepare image (filter only text, ...)
-    img = prepare_image(img, cropping=False)
+    # penalty reduction
+    penalty = 3000
 
-    # TODO for testing
-    # blur_energy_map_sc(img)
+    for i in range(10):
+        if i == 0:
+            # Prepare image (filter only text, ...)
+            img = prepare_image(img, cropping=False)
 
-    # create the engergy map
-    ori_energy_map = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
+        # create the engergy map
+        ori_energy_map = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
-    # bidirectional energy map
-    # bi_energy_map = build_seam_energy_map(ori_energy_map)
+        # bidirectional energy map
+        # bi_energy_map = build_seam_energy_map(ori_energy_map)
 
-    # show_img((ori_enegery_map/max_en) * 255)
-    # energy_map_representation = np.copy(ori_energy_map)
+        # show_img((ori_enegery_map/max_en) * 255)
+        # energy_map_representation = np.copy(ori_energy_map)
 
-    # visualize the energy map as heatmap
-    heatmap = create_heat_map_visualization(ori_energy_map)
-    # heatmap = create_heat_map_visualization(create_distance_matrix((1000, 1000), [[1, 1], [20, 20], [50, 80]], side_length=100).reshape((1000, 1000)))
+        # visualize the energy map as heatmap
+        heatmap = create_heat_map_visualization(ori_energy_map)
+        # heatmap = create_heat_map_visualization(create_distance_matrix((1000, 1000), [[1, 1], [20, 20], [50, 80]], side_length=100).reshape((1000, 1000)))
 
-    # show_img(ori_enegery_map)
-    for i in range(0, img.shape[0], 20):
-        energy_map = prepare_energy(ori_energy_map, i)
+        # list with all seams
+        seams = []
 
-        # non-library-seam carving
+        # show_img(ori_enegery_map)
+        for seam_at in range(0, img.shape[0], 5):
+            energy_map = prepare_energy(ori_energy_map, seam_at)
+
+            seam = horizontal_seam(energy_map, penalty=True, penalty_div=penalty)
+            seams.append(seam)
+            draw_seam(heatmap, seam)
+
         # -------------------------------
-        start = time.time()
-        # -------------------------------
-        test = horizontal_seam(energy_map, penalty=True, penalty_div=3000)
-        draw_seam(heatmap, test)
-
-        # -------------------------------
-        stop = time.time()
-        logging.info("finished after: {diff} s".format(diff=stop - start))
+        stop_whole = time.time()
+        logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
         # -------------------------------
 
-    # -------------------------------
-    stop_whole = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
-    # -------------------------------
-    show_img(heatmap, save=True)
+        img, growth = blow_up_image(img, seams)
+
+        penalty += penalty*growth
+
+        show_img(heatmap, save=True, name='../results/blow_up_v2/blow_up_{i}.png'.format(i=i), show=False)
 
 
 #######################################################################################################################
@@ -138,6 +140,31 @@ def prepare_image(img, cropping=True):
     # -------------------------------
 
     return img
+
+
+def blow_up_image(image, seams):
+    # new image
+    new_image = []
+
+    # get the new height of the image and the original one
+    ori_height, _, _ = image.shape
+    height = ori_height + len(seams)
+
+    seams = np.array(seams)
+
+    for i in range(0, image.shape[1]):
+        ori_col = image[:, i]
+        col = np.copy(image[:, i])
+        y_cords_seams = seams[:, i, 1]
+
+        seam_nb = 0
+        for y_seam in y_cords_seams:
+            col = np.insert(col, y_seam + seam_nb, ori_col[y_seam], axis=0)
+            seam_nb += 1
+
+        new_image.append(col)
+
+    return np.swapaxes(np.asarray(new_image), 0, 1), (((100 / ori_height) * height) - 100) / 100
 
 
 def cut_img(img, cc_props):
@@ -352,9 +379,6 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
         distance_matrix[v_range1, h_range1] = np.minimum(template[v_range2, h_range2], distance_matrix[v_range1, h_range1])
         # show_img(create_heat_map_visualization(distance_matrix))
 
-    # distance_matrix = np.array([np.insert(np.zeros(img_shape[0] * img_shape[1]), centroid[1] - np.ceil(template.size / 2)
-    #                                       .astype(int), template)[:img_shape[0] * img_shape[1]] for centroid in centroids])
-
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
@@ -543,12 +567,13 @@ def prepare_energy(ori_map, y):
     return energy_map
 
 
-def show_img(img, save=False):
-    cv2.imshow('img', img)
+def show_img(img, save=False, name='experiment.png', show=True):
+    if show:
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     if save:
-        cv2.imwrite("experiment.png", img)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        cv2.imwrite(name, img)
 
 
 # based on skimage
