@@ -19,7 +19,7 @@ from sklearn.preprocessing import normalize
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
-def segment_textlines(input_loc):
+def segment_textlines(input_loc, show_seams=False, show_heatmap=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -55,9 +55,11 @@ def segment_textlines(input_loc):
         # show_img((ori_enegery_map/max_en) * 255)
         # energy_map_representation = np.copy(ori_energy_map)
 
-        # visualize the energy map as heatmap
-        heatmap = create_heat_map_visualization(ori_energy_map)
-        # heatmap = create_heat_map_visualization(create_distance_matrix((1000, 1000), [[1, 1], [20, 20], [50, 80]], side_length=100).reshape((1000, 1000)))
+        if show_heatmap:
+            # visualize the energy map as heatmap
+            heatmap = create_heat_map_visualization(ori_energy_map)
+        else:
+            heatmap = np.copy(ori_energy_map)
 
         # list with all seams
         seams = []
@@ -68,7 +70,8 @@ def segment_textlines(input_loc):
 
             seam = horizontal_seam(energy_map, penalty=True, penalty_div=penalty)
             seams.append(seam)
-            draw_seam(heatmap, seam)
+            if show_seams:
+                draw_seam(heatmap, seam)
 
         # -------------------------------
         stop_whole = time.time()
@@ -79,7 +82,7 @@ def segment_textlines(input_loc):
 
         penalty += penalty*growth
 
-        show_img(heatmap, save=True, name='../results/blow_up_v2/blow_up_{i}.png'.format(i=i), show=False)
+        show_img(heatmap, save=True, name='../results/blow_up_without_seams/blow_up_{i}.png'.format(i=i), show=show_heatmap)
 
 
 #######################################################################################################################
@@ -159,7 +162,7 @@ def blow_up_image(image, seams):
 
         seam_nb = 0
         for y_seam in y_cords_seams:
-            col = np.insert(col, y_seam + seam_nb, ori_col[y_seam], axis=0)
+            col = np.insert(col, y_seam + seam_nb, [0, 0, 0], axis=0)
             seam_nb += 1
 
         new_image.append(col)
@@ -352,6 +355,7 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     pixel_coordinates = np.asarray([[x, y] for x in range(template.shape[0]) for y in range(template.shape[1])])
 
     # calculate template
+    # TODO save template for speed up
     if asymmetric:
         template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates])\
             .flatten().reshape((side_length, side_length))
