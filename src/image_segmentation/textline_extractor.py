@@ -19,7 +19,7 @@ from sklearn.preprocessing import normalize
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
-def segment_textlines(input_loc, show_seams=False, show_heatmap=False):
+def main(input_loc, show_seams=False, show_heatmap=False, penalty=3000):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -38,10 +38,29 @@ def segment_textlines(input_loc, show_seams=False, show_heatmap=False):
     # Load the image
     img = cv2.imread(input_loc)
 
-    # penalty reduction
-    penalty = 3000
+    # blow up image with the help of seams
+    img = textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_of_iterations=3)
 
-    for i in range(10):
+    # validate
+    measure_separation(img)
+
+#######################################################################################################################
+
+
+def textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_of_iterations=5):
+    """
+    Contains the main loop. In each iteration it creates an energy map based on the given image CC and
+    blows it up.
+
+    :param img:
+    :param penalty:
+    :param show_heatmap:
+    :param show_seams:
+    :param start_whole:
+    :return:
+    """
+
+    for i in range(nb_of_iterations):
         if i == 0:
             # Prepare image (filter only text, ...)
             img = prepare_image(img, cropping=False)
@@ -80,12 +99,19 @@ def segment_textlines(input_loc, show_seams=False, show_heatmap=False):
 
         img, growth = blow_up_image(img, seams)
 
-        penalty += penalty*growth
+        penalty += penalty * growth
 
-        show_img(heatmap, save=True, name='../results/blow_up_without_seams/blow_up_{i}.png'.format(i=i), show=show_heatmap)
+        show_img(heatmap, save=True, name='../results/blow_up_without_seams/blow_up_{i}.png'.format(i=i),
+                 show=show_heatmap)
+
+    return img
 
 
-#######################################################################################################################
+def measure_separation(img):
+    # create projection profile
+
+    pass
+
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -417,9 +443,6 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     # scale it with punishment
     areas *= 500
 
-    # build ellipsoid
-    # creating_ellipsoid(img)
-
     # creating distance matrix
     # pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
     # distance_matrix = distance.cdist(pixel_coordinates, centroids[0:10])
@@ -455,12 +478,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
         energy_map = blurred_energy_map + energy_text.reshape(img.shape[0:2])
 
     if projection:
-        # creating the horizontal projection profile
-        projection_profile = np.sum(energy_map, axis=1)
-        # normalize it between 0-1
-        projection_profile = (projection_profile - np.min(projection_profile)) / (np.max(projection_profile) - np.min(projection_profile))
-        # scale it between 0 and max(energy_map) / 2
-        projection_profile *= np.max(energy_map) / 2
+        projection_profile = create_projection_profile(energy_map)
 
         # blur projection profile
         projection_matrix = np.zeros(img.shape[0:2])
@@ -478,24 +496,15 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     return energy_map
 
 
-def creating_ellipsoid(img):
-    # horizontal and vertical weights
-    h_weight = 1
-    v_weight = 50
-
-    # a list with all pixel coordinates
-    pixel_coordinates = np.asarray([[x, y] for x in range(img.shape[0]) for y in range(img.shape[1])])
-
-    ellipsoid = np.zeros(img.shape[0:2])
-    ellipsoid_centroid = np.asarray([[0, 0]])
-    ellipsoid_base_block = distance.cdist(pixel_coordinates, ellipsoid_centroid, metric=get_metric(h_weight, v_weight))
-    ellipsoid_base_block = ellipsoid_base_block.reshape(img.shape[0:2])
-
-    return ellipsoid_base_block
-
-
-def get_metric(h_w, v_w):
-    return lambda u, v: np.sqrt(((u * v_w - v * h_w) ** 2).sum())
+def create_projection_profile(map):
+    # creating the horizontal projection profile
+    projection_profile = np.sum(map, axis=1)
+    # normalize it between 0-1
+    projection_profile = (projection_profile - np.min(projection_profile)) / (
+                np.max(projection_profile) - np.min(projection_profile))
+    # scale it between 0 and max(energy_map) / 2
+    projection_profile *= np.max(map) / 2
+    return projection_profile
 
 
 def find_cc_centroids_areas(img):
@@ -580,50 +589,6 @@ def show_img(img, save=False, name='experiment.png', show=True):
         cv2.imwrite(name, img)
 
 
-# based on skimage
-def cast_seam(img, energy_map):
-    return transform.seam_carve(img, energy_map, mode='horizontal', num=1, border=0)
-
-
-# try to find the seam based on the original and the cut image
-def find_seam(ori_img, ori_cut_img):
-    # resize the cut image
-    # get the amount of rows to insert
-    amount_rows = ori_img.shape[0] - ori_cut_img.shape[0]
-    # add a line of zeros at the end to resize the image
-    cut_img = np.append(ori_cut_img, np.zeros((amount_rows, ori_cut_img.shape[1], ori_cut_img.shape[2])), axis=0)
-
-    img = np.copy(ori_img)
-    img = np.sum(img, axis=2)
-    img[img == 0] = 2
-
-    # substract the seam carved image from the original one
-    diff = img - np.sum(cut_img, axis=2)
-    coords = [col.argmax() for col in (diff.transpose() != 0)]
-    # coords is shit
-    for idx, val in enumerate(coords):
-        ori_img[val][idx][0] = 255
-
-    return ori_img
-
-
-def blur_energy_map_sc(img):
-    horizontal_blur, _ = blur_image(img, filter_size=800)
-    hori_verti_blur, _ = blur_image(horizontal_blur, filter_size=10, horizontal=False)
-    hori_verti_blur = cv2.add(hori_verti_blur, img)
-    img_energy_map, ori_energy_map = blur_image(hori_verti_blur, filter_size=100)
-    show_energy = np.copy(img_energy_map)
-
-    # cut_img = cast_seam(img, 300)
-    # seam_img = find_seam(img, cut_img)
-
-    for i in range(0, img.shape[0], 10):
-        test = horizontal_seam(ori_energy_map, i)
-        draw_seam(show_energy, test)
-
-    show_img(show_energy)
-
-
 #######################################################################################################################
 
 if __name__ == "__main__":
@@ -641,5 +606,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    segment_textlines(input_loc='../data/test1.png')
+    main(input_loc='../data/test1.png')
     logging.info('Terminated')
