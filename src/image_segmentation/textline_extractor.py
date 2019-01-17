@@ -19,7 +19,7 @@ from sklearn.preprocessing import normalize
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
-def main(input_loc, show_seams=False, show_heatmap=False, penalty=3000):
+def main(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -39,26 +39,30 @@ def main(input_loc, show_seams=False, show_heatmap=False, penalty=3000):
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img = textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_of_iterations=3)
+    img, connected_components = textline_separation(img, penalty, save_heatmap, show_seams, start_whole, show, nb_of_iterations=3)
 
     # validate
-    measure_separation(img)
+    measure_separation(img, connected_components)
 
 #######################################################################################################################
 
 
-def textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_of_iterations=5):
+def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, show, nb_of_iterations=5):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
 
     :param img:
     :param penalty:
-    :param show_heatmap:
+    :param save_heatmap:
     :param show_seams:
     :param start_whole:
     :return:
     """
+
+    # list with all seams of the last iteration
+    last_seams = []
+    connected_components = []
 
     for i in range(nb_of_iterations):
         if i == 0:
@@ -66,7 +70,7 @@ def textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_
             img = prepare_image(img, cropping=False)
 
         # create the engergy map
-        ori_energy_map = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
+        ori_energy_map, connected_components = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
         # bidirectional energy map
         # bi_energy_map = build_seam_energy_map(ori_energy_map)
@@ -74,7 +78,7 @@ def textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_
         # show_img((ori_enegery_map/max_en) * 255)
         # energy_map_representation = np.copy(ori_energy_map)
 
-        if show_heatmap:
+        if save_heatmap:
             # visualize the energy map as heatmap
             heatmap = create_heat_map_visualization(ori_energy_map)
         else:
@@ -99,19 +103,22 @@ def textline_separation(img, penalty, show_heatmap, show_seams, start_whole, nb_
 
         img, growth = blow_up_image(img, seams)
 
+        last_seams = seams
+
         penalty += penalty * growth
 
-        show_img(heatmap, save=True, name='../results/blow_up_without_seams/blow_up_{i}.png'.format(i=i),
-                 show=show_heatmap)
+        show_img(heatmap, save=True, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
+                 show=show)
 
-    return img
+    return img, connected_components, last_seams
 
 
-def measure_separation(img):
-    # create projection profile
+def measure_separation(img, connected_components):
+    # compute the list of CC -> get them as parameter
+    # for each pair of cc count how many times they were not separated
 
+    # group as a single line all CCs which are most frequently together
     pass
-
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -479,6 +486,11 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     if projection:
         projection_profile = create_projection_profile(energy_map)
+        # normalize it between 0-1
+        projection_profile = (projection_profile - np.min(projection_profile)) / (
+                np.max(projection_profile) - np.min(projection_profile))
+        # scale it between 0 and max(energy_map) / 2
+        projection_profile *= np.max(energy_map) / 2
 
         # blur projection profile
         projection_matrix = np.zeros(img.shape[0:2])
@@ -493,17 +505,12 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return energy_map
+    return energy_map, cc
 
 
 def create_projection_profile(map):
     # creating the horizontal projection profile
     projection_profile = np.sum(map, axis=1)
-    # normalize it between 0-1
-    projection_profile = (projection_profile - np.min(projection_profile)) / (
-                np.max(projection_profile) - np.min(projection_profile))
-    # scale it between 0 and max(energy_map) / 2
-    projection_profile *= np.max(map) / 2
     return projection_profile
 
 
