@@ -13,9 +13,9 @@ from XMLhandler import writePAGEfile
 from scipy.spatial import ConvexHull, distance
 from skimage import measure, transform
 from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import normalize
 
 #######################################################################################################################
+from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
 
 
@@ -39,10 +39,10 @@ def main(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components = textline_separation(img, penalty, save_heatmap, show_seams, start_whole, show, nb_of_iterations=3)
-
+    img, connected_components, last_seams = textline_separation(img, penalty, save_heatmap, show_seams, start_whole,
+                                                                show, nb_of_iterations=1)
     # validate
-    measure_separation(img, connected_components)
+    get_polygons(img, connected_components, last_seams)
 
 #######################################################################################################################
 
@@ -57,12 +57,14 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
     :param save_heatmap:
     :param show_seams:
     :param start_whole:
+    :param show:
+    :param nb_of_iterations:
     :return:
     """
 
     # list with all seams of the last iteration
     last_seams = []
-    connected_components = []
+    centroids = []
 
     for i in range(nb_of_iterations):
         if i == 0:
@@ -70,7 +72,7 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
             img = prepare_image(img, cropping=False)
 
         # create the engergy map
-        ori_energy_map, connected_components = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
+        ori_energy_map, centroids = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
         # bidirectional energy map
         # bi_energy_map = build_seam_energy_map(ori_energy_map)
@@ -101,23 +103,39 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
         logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
         # -------------------------------
 
-        img, growth = blow_up_image(img, seams)
+        if i != nb_of_iterations - 1:
+            img, growth = blow_up_image(img, seams)
+            penalty += penalty * growth
+        else:
+            last_seams = seams
 
-        last_seams = seams
-
-        penalty += penalty * growth
-
-        show_img(heatmap, save=True, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
+        show_img(heatmap, save=False, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
                  show=show)
 
-    return img, connected_components, last_seams
+    return img, centroids, last_seams
 
 
-def measure_separation(img, connected_components):
+def get_polygons(img, centroids, last_seams):
+    # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
-
     # group as a single line all CCs which are most frequently together
+
+    # Lars
+    # triangulate the CC
+    # tranform into a graph
+    graph = createTINgraph(centroids)
+    print_graph_on_img(img, graph)
+    show_img(img, show=True)
+    # create a quadtree of the edges to make the search easier
+
+    # use the seams to cut them into graphs
+    # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
+    # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
+
+    # discard small graphs
+    # get concave hull from it
+
     pass
 
 
@@ -505,7 +523,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return energy_map, cc
+    return energy_map, centroids
 
 
 def create_projection_profile(map):
