@@ -16,11 +16,11 @@ from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
-    graph_to_point_lists
+    graph_to_point_lists, detect_small_graphs
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 
 
-def extract_textline(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, nb_of_iterations=1, seam_every_x_pxl =5):
+def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, nb_of_iterations=1, seam_every_x_pxl=5):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -40,16 +40,21 @@ def extract_textline(input_loc, show_seams=True, save_heatmap=True, penalty=3000
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = separate_textlines(img, penalty, save_heatmap, show_seams, start_whole,
+    img, connected_components, last_seams = separate_textlines(img, penalty, save_heatmap, show_seams,
                                                                show, seam_every_x_pxl, nb_of_iterations)
-    # validate
-    get_polygons(img, connected_components, last_seams)
 
+    # -------------------------------
+    stop_whole = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
+    # -------------------------------
+
+    # validate
+    return get_polygons(img, connected_components, last_seams)
 
 #######################################################################################################################
 
 
-def separate_textlines(img, penalty, save_heatmap, show_seams, start_whole, show, seam_every_x_pxl =5, nb_of_iterations=5):
+def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_x_pxl =5, nb_of_iterations=5):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -63,6 +68,10 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, start_whole, show
     :param nb_of_iterations:
     :return:
     """
+
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
 
     # list with all seams of the last iteration
     last_seams = []
@@ -100,19 +109,19 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, start_whole, show
             if show_seams:
                 draw_seam(heatmap, seam)
 
-        # -------------------------------
-        stop_whole = time.time()
-        logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
-        # -------------------------------
-
         if i != nb_of_iterations - 1:
             img, growth = blow_up_image(img, seams)
             penalty += penalty * growth
         else:
             last_seams = seams
 
-        show_img(heatmap, save=False, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
+        show_img(heatmap, save=True, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
                  show=show)
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
 
     return img, cc, last_seams
 
@@ -122,6 +131,9 @@ def get_polygons(img, connected_components, last_seams):
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
     # group as a single line all CCs which are most frequently together
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
 
     centroids = np.asarray([cc.centroid[0:2] for cc in connected_components[1]])
     centroids = centroids[np.argsort(centroids[:, 0]), :]
@@ -132,13 +144,15 @@ def get_polygons(img, connected_components, last_seams):
     # TODO create a quadtree of the edges to make the search easier
 
     # use the seams to cut them into graphs
-    cut_graph_with_seams(graph, last_seams)
+    graphs = cut_graph_with_seams(graph, last_seams)
+
+    # delete outliers
+    graphs = detect_small_graphs(graphs)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    print_graph_on_img(img, graph)
-    show_img(img, save=True, show=False, name='cut_graph.png')
-    point_clouds = graph_to_point_lists(graph)
+    show_img(print_graph_on_img(img, graphs), save=True, show=False, name='cut_graph.png')
+    point_clouds = graph_to_point_lists(graphs)
 
     # Create a working copy of the image to draw the CC convex hull & so
     cc_img = np.zeros(img.shape[0:2])
@@ -148,21 +162,22 @@ def get_polygons(img, connected_components, last_seams):
     cc_polygons = []
     l = 0
     for line in point_clouds:
-        cc_hull_points = np.array([])
+        cc_hull_points = []
         for c in line:
             cc = find_cc_from_centroid(c, connected_components[1])
             points = cc.coords[::3, 0:2]
             # hull = ConvexHull(points)
             # cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
-            cc_hull_points = np.append(cc_hull_points, points)
+            cc_hull_points.extend(points)
             # for v in hull.vertices:
             #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
             # Draw the convex hulls of each CC on the working copy
             # cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
-        cc_polygons.append(cc_hull_points[ConvexHull(cc_hull_points).vertices])
+        cc_polygons.append(np.asarray(cc_hull_points)[ConvexHull(cc_hull_points).vertices])
         l += 1
 
     for polygon in cc_polygons:
+        img = img.copy()
         cv2.polylines(img, [polygon], isClosed=True, thickness=5, color=(0, 255, 255))
         cv2.fillPoly(cc_img, [polygon], color=(255, 255, 255))
 
@@ -170,6 +185,11 @@ def get_polygons(img, connected_components, last_seams):
 
     # show_img(img, show=True, save=True, name='polgyons_t1.png')
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
 
     return l
 
@@ -232,6 +252,10 @@ def prepare_image(img, cropping=True):
 
 
 def blow_up_image(image, seams):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
     # new image
     new_image = []
 
@@ -252,6 +276,11 @@ def blow_up_image(image, seams):
             seam_nb += 1
 
         new_image.append(col)
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
 
     return np.swapaxes(np.asarray(new_image), 0, 1), (((100 / ori_height) * height) - 100) / 100
 
@@ -668,5 +697,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/test1.png')
+    extract_textline(input_loc='../data/test1.png', output_loc='')
     logging.info('Terminated')
