@@ -8,13 +8,17 @@ from subprocess import Popen, PIPE, STDOUT
 import numpy as np
 from sklearn.model_selection import ParameterGrid
 
-from XMLhandler import read_max_textline_from_file
-from textline_extractor import segment_textlines
+from src.image_segmentation.XMLhandler import read_max_textline_from_file
+from src.image_segmentation.textline_extractor import extract_textline
 
 # Specify the list of parameters to grid-search over.
-param_list = {'eps': [0.0061],
-              'min_samples': [3, 4],
-              'merge_ratio': [0.8]}
+# param_list = {'eps': [0.0061],
+#               'min_samples': [3, 4],
+#               'merge_ratio': [0.8]}
+param_list = {
+    'penalty': [3000],
+    'nb_of_iterations': [1],
+    'seam_every_x_pxl': [5]}
 
 
 def is_image_file(filename):
@@ -46,13 +50,13 @@ def compute_for_all(arg_container):
     filename_without_ext = os.path.basename(input_loc).split('.')[0]
     params['input_loc'] = input_loc
     params['output_loc'] = os.path.join(args.output_path,
-                                        filename_without_ext + '_eps_{}_min_samples_{}_merge_ration_{}.xml'.format(
-                                            params['eps'],
-                                            params['min_samples'],
-                                            params['merge_ratio'],))
+                                        filename_without_ext + '_penalty_{}_iterations_{}_seam_every_{}.xml'.format(
+                                            params['penalty'],
+                                            params['nb_of_iterations'],
+                                            params['seam_every_x_pxl'],))
     output_loc = params['output_loc']
     try:
-        num_lines = segment_textlines(**params)
+        num_lines = extract_textline(**params)
     except:
         print("Failed for some reason")
         score = 0.0
@@ -93,15 +97,15 @@ def main(args):
             results = list(pool.map(compute_for_all, zip(input_images, itertools.repeat(params), itertools.repeat(args))))
             param_scores.append(results)
             score = np.average([item[1] for item in results])
-            print('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
-                params['eps'],
-                params['min_samples'],
-                params['merge_ratio'],
+            print('penalty reduction: {} # of iterations: {} seam every x pixel: {} score: {:.2f}\n'.format(
+                params['penalty'],
+                params['nb_of_iterations'],
+                params['seam_every_x_pxl'],
                 score))
-            f.write('eps: {} min_samples: {} merge_ratio: {} score: {:.2f}\n'.format(
-                params['eps'],
-                params['min_samples'],
-                params['merge_ratio'],
+            f.write('penalty reduction: {} # of iterations: {} seam every x pixel: {} score: {:.2f}\n'.format(
+                params['penalty'],
+                params['nb_of_iterations'],
+                params['seam_every_x_pxl'],
                 score))
     pool.close()
 
@@ -136,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_path', metavar='DIR',
                         default='/tmp', help='path to store temporary output files')
     parser.add_argument('--eval_tool', metavar='DIR',
-                        default='./DIVA_Line_Segmentation_Evaluator/out/artifacts/LineSegmentationEvaluator.jar',
+                        default='../data/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
     parser.add_argument('-j', default=8, type=int,
                         help='number of thread to use for parallel search')
