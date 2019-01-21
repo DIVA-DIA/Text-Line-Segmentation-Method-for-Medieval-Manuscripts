@@ -15,11 +15,12 @@ from skimage import measure, transform
 from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
-from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img
-from src.image_segmentation.seamcarving import horizontal_seam, draw_seam, build_seam_energy_map
+from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
+    graph_to_point_lists
+from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 
 
-def main(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False):
+def extract_textline(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, nb_of_iterations=1, seam_every_x_pxl =5):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -39,15 +40,16 @@ def main(input_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = textline_separation(img, penalty, save_heatmap, show_seams, start_whole,
-                                                                show, nb_of_iterations=1)
+    img, connected_components, last_seams = separate_textlines(img, penalty, save_heatmap, show_seams, start_whole,
+                                                               show, seam_every_x_pxl, nb_of_iterations)
     # validate
     get_polygons(img, connected_components, last_seams)
+
 
 #######################################################################################################################
 
 
-def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, show, nb_of_iterations=5):
+def separate_textlines(img, penalty, save_heatmap, show_seams, start_whole, show, seam_every_x_pxl =5, nb_of_iterations=5):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -64,7 +66,7 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
 
     # list with all seams of the last iteration
     last_seams = []
-    centroids = []
+    cc = []
 
     for i in range(nb_of_iterations):
         if i == 0:
@@ -72,7 +74,7 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
             img = prepare_image(img, cropping=False)
 
         # create the engergy map
-        ori_energy_map, centroids = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
+        ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
         # bidirectional energy map
         # bi_energy_map = build_seam_energy_map(ori_energy_map)
@@ -90,7 +92,7 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
         seams = []
 
         # show_img(ori_enegery_map)
-        for seam_at in range(0, img.shape[0], 5):
+        for seam_at in range(0, img.shape[0], seam_every_x_pxl):
             energy_map = prepare_energy(ori_energy_map, seam_at)
 
             seam = horizontal_seam(energy_map, penalty=True, penalty_div=penalty)
@@ -112,31 +114,64 @@ def textline_separation(img, penalty, save_heatmap, show_seams, start_whole, sho
         show_img(heatmap, save=False, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
                  show=show)
 
-    return img, centroids, last_seams
+    return img, cc, last_seams
 
 
-def get_polygons(img, centroids, last_seams):
+def get_polygons(img, connected_components, last_seams):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
     # group as a single line all CCs which are most frequently together
 
+    centroids = np.asarray([cc.centroid[0:2] for cc in connected_components[1]])
+    centroids = centroids[np.argsort(centroids[:, 0]), :]
     # Lars
     # triangulate the CC
     # tranform into a graph
     graph = createTINgraph(centroids)
-    print_graph_on_img(img, graph)
-    show_img(img, show=True)
-    # create a quadtree of the edges to make the search easier
+    # TODO create a quadtree of the edges to make the search easier
 
     # use the seams to cut them into graphs
+    cut_graph_with_seams(graph, last_seams)
+
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
+    print_graph_on_img(img, graph)
+    show_img(img, save=True, show=False, name='cut_graph.png')
+    point_clouds = graph_to_point_lists(graph)
 
-    # discard small graphs
-    # get concave hull from it
+    # Create a working copy of the image to draw the CC convex hull & so
+    cc_img = np.zeros(img.shape[0:2])
 
-    pass
+    #############################################
+    # Extract the contour of each CC
+    cc_polygons = []
+    l = 0
+    for line in point_clouds:
+        cc_hull_points = np.array([])
+        for c in line:
+            cc = find_cc_from_centroid(c, connected_components[1])
+            points = cc.coords[::3, 0:2]
+            # hull = ConvexHull(points)
+            # cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
+            cc_hull_points = np.append(cc_hull_points, points)
+            # for v in hull.vertices:
+            #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
+            # Draw the convex hulls of each CC on the working copy
+            # cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
+        cc_polygons.append(cc_hull_points[ConvexHull(cc_hull_points).vertices])
+        l += 1
+
+    for polygon in cc_polygons:
+        cv2.polylines(img, [polygon], isClosed=True, thickness=5, color=(0, 255, 255))
+        cv2.fillPoly(cc_img, [polygon], color=(255, 255, 255))
+
+    # TODO export the polygons as xml
+
+    # show_img(img, show=True, save=True, name='polgyons_t1.png')
+    # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
+
+    return l
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -153,7 +188,7 @@ def create_heat_map_visualization(ori_energy_map):
 
     # -------------------------------
     stop = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop-start))
+    logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
     return heatmap
@@ -190,7 +225,7 @@ def prepare_image(img, cropping=True):
 
     # -------------------------------
     stop = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop-start))
+    logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
     return img
@@ -330,6 +365,7 @@ def draw_clusters(img, centroids, labels):
 
 
 def find_cc_from_centroid(c, cc_properties):
+    c[0], c[1] = c[1], c[0]
     for cc in cc_properties:
         if (np.asarray(cc.centroid[0:2]) == c).all():
             return cc
@@ -389,7 +425,7 @@ def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_s
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    return output  #, np.sum(output, axis=2)
+    return output  # , np.sum(output, axis=2)
 
 
 def calculate_asymmetric_distance(x, y, h_weight=1, v_weight=5):
@@ -408,7 +444,7 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     # calculate template
     # TODO save template for speed up
     if asymmetric:
-        template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates])\
+        template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates]) \
             .flatten().reshape((side_length, side_length))
     else:
         template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
@@ -431,7 +467,8 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
         h_range2 = slice(max(0, -pos_h), min(-pos_h + distance_matrix.shape[1], template.shape[1]))
 
         # need max
-        distance_matrix[v_range1, h_range1] = np.minimum(template[v_range2, h_range2], distance_matrix[v_range1, h_range1])
+        distance_matrix[v_range1, h_range1] = np.minimum(template[v_range2, h_range2],
+                                                         distance_matrix[v_range1, h_range1])
         # show_img(create_heat_map_visualization(distance_matrix))
 
     # -------------------------------
@@ -523,7 +560,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return energy_map, centroids
+    return energy_map, cc
 
 
 def create_projection_profile(map):
@@ -631,5 +668,5 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    main(input_loc='../data/test1.png')
+    extract_textline(input_loc='../data/test1.png')
     logging.info('Terminated')

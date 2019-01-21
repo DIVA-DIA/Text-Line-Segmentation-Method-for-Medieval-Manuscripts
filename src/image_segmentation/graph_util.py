@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import scipy.spatial
 import cv2
+from shapely.geometry import LineString
 
 
 def createTINgraph(points):
@@ -50,5 +51,39 @@ def print_graph_on_img(img, graph):
         p1 = (p1[0], p1[1])
         p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
         p2 = (p2[0], p2[1])
-        cv2.line(img, p1, p2, (255, 0, 0))
+        cv2.line(img, p1, p2, (0, 255, 0), thickness=3)
 
+
+def cut_graph_with_seams(graph, seams):
+    edges_to_remove = set()
+
+    # TODO use quadtree to speed up
+    for seam in seams:
+        seam = LineString(seam)
+
+        for edge in graph.edges:
+            p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+            p1 = (p1[0], p1[1])
+            p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+            p2 = (p2[0], p2[1])
+            line_edge = LineString([p1, p2])
+            if line_edge.intersects(seam):
+                edges_to_remove.add(edge)
+
+    graph.remove_edges_from(edges_to_remove)
+
+
+def graph_to_point_lists(graph):
+    if nx.is_connected(graph):
+        return [graph._node[node]['XY'] for node in graph._node]
+
+    graphs = np.asarray([g for g in nx.connected_component_subgraphs(graph)])
+    return [[g._node[node]['XY'] for node in g._node] for g in detect_small_graphs(graphs)]
+
+
+def detect_small_graphs(graphs):
+    copy = [np.asarray(list(g.nodes)) for g in graphs]
+    graph_sizes = np.asarray([g.size for g in copy])
+    # threshold which graphs to discard
+    too_small = abs(graph_sizes - np.mean(graph_sizes)) < np.std(graph_sizes)
+    return graphs[too_small]
