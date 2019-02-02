@@ -7,17 +7,20 @@ import os
 import time
 
 import cv2
-import numpy as np
 import sys
-from XMLhandler import writePAGEfile
-from scipy.spatial import ConvexHull, distance
-from skimage import measure, transform
+import numpy as np
+import networkx as nx
+from scipy.spatial import distance
+from skimage import measure
 from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
     graph_to_point_lists, detect_small_graphs
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
+from src.image_segmentation.XMLhandler import writePAGEfile
+
+result_path = '../results/edge_live_10_test1'
 
 
 def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, nb_of_iterations=1, seam_every_x_pxl=5):
@@ -43,18 +46,22 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     img, connected_components, last_seams = separate_textlines(img, penalty, save_heatmap, show_seams,
                                                                show, seam_every_x_pxl, nb_of_iterations)
 
+    nb_polygons = get_polygons(img, connected_components, last_seams)
+
+    logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
+
     # -------------------------------
     stop_whole = time.time()
     logging.info("finished after: {diff} s".format(diff=stop_whole - start_whole))
     # -------------------------------
 
     # validate
-    return get_polygons(img, connected_components, last_seams)
+    return nb_polygons
 
 #######################################################################################################################
 
 
-def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_x_pxl =5, nb_of_iterations=5):
+def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_x_pxl =5, nb_of_iterations=1):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -115,7 +122,7 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_
         else:
             last_seams = seams
 
-        show_img(heatmap, save=True, name='../results/blow_up_v4_seams/blow_up_{i}.png'.format(i=i),
+        show_img(heatmap, save=True, name=os.path.join(result_path, 'energy_map.png'),
                  show=show)
 
     # -------------------------------
@@ -126,7 +133,7 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_
     return img, cc, last_seams
 
 
-def get_polygons(img, connected_components, last_seams):
+def get_polygons(img, connected_components, last_seams, delete_outliers=True):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
@@ -146,42 +153,62 @@ def get_polygons(img, connected_components, last_seams):
     # use the seams to cut them into graphs
     graphs = cut_graph_with_seams(graph, last_seams)
 
-    # delete outliers
-    graphs = detect_small_graphs(graphs)
+    if delete_outliers:
+        # delete outliers
+        graphs = detect_small_graphs(graphs)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    show_img(print_graph_on_img(img, graphs), save=True, show=False, name='cut_graph.png')
-    point_clouds = graph_to_point_lists(graphs)
+    show_img(print_graph_on_img(img, graphs), save=True, show=False, name=os.path.join(result_path, 'graph/cut_graph.png'))
+    graphs_as_point_lists = graph_to_point_lists(graphs)
 
     # Create a working copy of the image to draw the CC convex hull & so
     cc_img = np.zeros(img.shape[0:2])
 
     #############################################
     # Extract the contour of each CC
-    cc_polygons = []
-    l = 0
-    for line in point_clouds:
-        cc_hull_points = []
+    # if the centroid is not on the area of the cc, replace centroid with random point on the area
+    nb_lines = 0
+    polygon_coords = []
+    for line in graphs_as_point_lists:
+        cc_coords = []
+        graph_nodes = []
+        polygon_img = np.zeros(img.shape)
         for c in line:
             cc = find_cc_from_centroid(c, connected_components[1])
             points = cc.coords[::3, 0:2]
+            points = np.asarray([[point[1], point[0]]for point in points])
+            cc_coords.append(points)
+            graph_nodes.append([points[0][1], points[0][0]])
+
             # hull = ConvexHull(points)
             # cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
-            cc_hull_points.extend(points)
-            # for v in hull.vertices:
-            #     cv2.circle(img, tuple(reversed(points[v])), radius=1, color=(0, 255, 255), thickness=5)
-            # Draw the convex hulls of each CC on the working copy
-            # cv2.fillPoly(img, [points[hull.vertices][:, [1, 0]]], color=(0, 255, 255))
-        cc_polygons.append(np.asarray(cc_hull_points)[ConvexHull(cc_hull_points).vertices])
-        l += 1
+            # cc_hull_points.extend(points)
+        # cc_polygons.append(np.asarray(cc_hull_points)[ConvexHull(cc_hull_points).vertices])
 
-    for polygon in cc_polygons:
-        img = img.copy()
-        cv2.polylines(img, [polygon], isClosed=True, thickness=5, color=(0, 255, 255))
-        cv2.fillPoly(cc_img, [polygon], color=(255, 255, 255))
+        # create graph
+        overlay_graph = createTINgraph(graph_nodes)
 
-    # TODO export the polygons as xml
+        # create mst
+        overlay_graph = nx.minimum_spanning_tree(overlay_graph)
+
+        # overlay
+        polygon_img = print_graph_on_img(polygon_img, [overlay_graph], color=(255, 255, 255), thickness=1)
+        cv2.fillPoly(polygon_img, cc_coords, color=(255, 255, 255))
+        # for cc_coord in cc_coords:
+        #     # add cc areas to the image
+        #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
+
+        # get connected components
+        # TODO make this step for every line
+        _, cc_properties = get_connected_components(polygon_img)
+        polygon_coords.append(np.asarray(cc_properties[0].coords))
+
+        nb_lines += 1
+
+    # write into the xml file
+    # TODO polygon to string converter
+    writePAGEfile(os.path.join(result_path, 'polygons.xml'), polygon_to_string(polygon_coords))
 
     # show_img(img, show=True, save=True, name='polgyons_t1.png')
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
@@ -191,7 +218,7 @@ def get_polygons(img, connected_components, last_seams):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return l
+    return nb_lines
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -266,7 +293,6 @@ def blow_up_image(image, seams):
     seams = np.array(seams)
 
     for i in range(0, image.shape[1]):
-        ori_col = image[:, i]
         col = np.copy(image[:, i])
         y_cords_seams = seams[:, i, 1]
 
@@ -604,8 +630,7 @@ def find_cc_centroids_areas(img):
     # -------------------------------
     #############################################
     # Find CC
-    cc_labels = measure.label(img[:, :, 1], background=0)
-    cc_properties = measure.regionprops(cc_labels, cache=True)
+    cc_labels, cc_properties = get_connected_components(img)
 
     amount_of_properties = 0
 
@@ -617,8 +642,7 @@ def find_cc_centroids_areas(img):
         img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
 
         # Re-find CC
-        cc_labels = measure.label(img[:, :, 1], background=0)
-        cc_properties = measure.regionprops(cc_labels, cache=True)
+        cc_labels, cc_properties = get_connected_components(img)
         #############################################
 
     # Collect CC centroids
@@ -649,6 +673,30 @@ def find_cc_centroids_areas(img):
     # -------------------------------
 
     return (cc_labels, cc_properties), all_centroids, all_areas
+
+
+def get_connected_components(img):
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    return cc_labels, cc_properties
+
+
+def polygon_to_string(polygons):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+    strings = []
+    for polygon in polygons:
+        line_string = []
+        for point in polygon:
+            line_string.append("{},{}".format(point[0], point[1]))
+        strings.append(' '.join(line_string))
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+    return strings
 
 
 def prepare_energy(ori_map, y):

@@ -1,11 +1,16 @@
 import logging
+import os
 import time
 
 import networkx as nx
 import numpy as np
-import scipy.spatial
+import matplotlib.pyplot as plt
 import cv2
+
+from scipy.spatial import Delaunay
 from shapely.geometry import LineString
+
+result_path = '../results/edge_live_10_test1'
 
 
 def createTINgraph(points):
@@ -25,7 +30,7 @@ def createTINgraph(points):
     start = time.time()
     # -------------------------------
 
-    TIN = scipy.spatial.Delaunay(points)
+    TIN = Delaunay(points)
     edges = set()
     # for each Delaunay triangle
     for n in range(TIN.nsimplex):
@@ -34,14 +39,16 @@ def createTINgraph(points):
         # (sorting avoids duplicated edges being added to the set)
         # and add to the edges set
         edge = sorted([TIN.vertices[n, 0], TIN.vertices[n, 1]])
-        edges.add((edge[0], edge[1]))
+        # TODO weighted eucleadean distance measure
+        edges.add((edge[0], edge[1], np.linalg.norm(np.asarray(points[edge[0]]) - np.asarray(points[edge[1]]))))
         edge = sorted([TIN.vertices[n, 0], TIN.vertices[n, 2]])
-        edges.add((edge[0], edge[1]))
+        edges.add((edge[0], edge[1], np.linalg.norm(np.asarray(points[edge[0]]) - np.asarray(points[edge[1]]))))
         edge = sorted([TIN.vertices[n, 1], TIN.vertices[n, 2]])
-        edges.add((edge[0], edge[1]))
+        edges.add((edge[0], edge[1], np.linalg.norm(np.asarray(points[edge[0]]) - np.asarray(points[edge[1]]))))
 
     # make a graph based on the Delaunay triangulation edges
-    graph = nx.Graph(list(edges))
+    graph = nx.Graph()
+    graph.add_weighted_edges_from(list(edges))
 
     original_nodes = points
     for n in range(len(original_nodes)):
@@ -56,7 +63,7 @@ def createTINgraph(points):
     return graph
 
 
-def print_graph_on_img(img, graphs):
+def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     img = img.copy()
     for graph in graphs:
         for edge in graph.edges:
@@ -64,7 +71,7 @@ def print_graph_on_img(img, graphs):
             p1 = (p1[0], p1[1])
             p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
             p2 = (p2[0], p2[1])
-            cv2.line(img, p1, p2, (0, 255, 0), thickness=3)
+            cv2.line(img, p1, p2, color, thickness=thickness)
 
     return img
 
@@ -74,7 +81,7 @@ def cut_graph_with_seams(graph, seams):
     start = time.time()
     # -------------------------------
 
-    edges_to_remove = set()
+    edges_to_remove = []
 
     # TODO use quadtree to speed up
     for seam in seams:
@@ -87,19 +94,30 @@ def cut_graph_with_seams(graph, seams):
             p2 = (p2[0], p2[1])
             line_edge = LineString([p1, p2])
             if line_edge.intersects(seam):
-                edges_to_remove.add(edge)
+                edges_to_remove.append(edge)
 
-    graph.remove_edges_from(edges_to_remove)
+    # getting unique edges and couting them
+    unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
+
+    # delete the edges which get cut less then n times
+    unique_edges = unique_edges[occurrences > 10]
+    # print(np.min(counter), np.max(counter))
+    plt.hist(occurrences, bins='auto')
+    plt.savefig(os.path.join(result_path, 'histo/histo_without_reduction.png'))
+    plt.hist(occurrences[occurrences > 15], bins='auto')
+    plt.savefig(os.path.join(result_path, 'histo/histo_with_reduction.png'))
+
+    graph.remove_edges_from(unique_edges)
 
     if nx.is_connected(graph):
-        return [graph._node[node]['XY'] for node in graph._node]
+        return np.asarray([graph])
 
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return np.asarray([g for g in nx.connected_component_subgraphs(graph)])
+    return np.asarray(list(nx.connected_component_subgraphs(graph)))
 
 
 def graph_to_point_lists(graphs):
@@ -114,10 +132,11 @@ def detect_small_graphs(graphs):
     copy = [np.asarray(list(g.nodes)) for g in graphs]
     graph_sizes = np.asarray([g.size for g in copy])
     # threshold which graphs to discard
-    too_small = abs(graph_sizes - np.mean(graph_sizes)) < 3 * np.std(graph_sizes)
+    # too_small = abs(graph_sizes - np.mean(graph_sizes)) < 3 * np.std(graph_sizes)
 
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
-    return graphs[too_small]
+    # return graphs[too_small]
+    return graphs[graph_sizes > 5]
