@@ -20,10 +20,9 @@ from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
 
-result_path = '../results/edge_live_10_test1'
 
-
-def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, nb_of_iterations=1, seam_every_x_pxl=5):
+def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False,
+                     nb_of_iterations=1, seam_every_x_pxl=5, nb_of_lives=10, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -43,10 +42,10 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = separate_textlines(img, penalty, save_heatmap, show_seams,
-                                                               show, seam_every_x_pxl, nb_of_iterations)
+    img, connected_components, last_seams = separate_textlines(img, output_loc, penalty, save_heatmap, show_seams,
+                                                               show, testing, seam_every_x_pxl, nb_of_iterations)
 
-    nb_polygons = get_polygons(img, connected_components, last_seams)
+    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives)
 
     logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
 
@@ -61,7 +60,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
 #######################################################################################################################
 
 
-def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_x_pxl =5, nb_of_iterations=1):
+def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show, testing, seam_every_x_pxl =5, nb_of_iterations=1):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -87,7 +86,7 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_
     for i in range(nb_of_iterations):
         if i == 0:
             # Prepare image (filter only text, ...)
-            img = prepare_image(img, cropping=False)
+            img = prepare_image(img,testing=testing, cropping=False)
 
         # create the engergy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
@@ -122,7 +121,7 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_
         else:
             last_seams = seams
 
-        show_img(heatmap, save=True, name=os.path.join(result_path, 'energy_map.png'),
+        show_img(heatmap, save=True, name=os.path.join(output_loc, 'energy_map.png'),
                  show=show)
 
     # -------------------------------
@@ -133,7 +132,7 @@ def separate_textlines(img, penalty, save_heatmap, show_seams, show, seam_every_
     return img, cc, last_seams
 
 
-def get_polygons(img, connected_components, last_seams, delete_outliers=True):
+def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, delete_outliers=True):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
@@ -151,15 +150,15 @@ def get_polygons(img, connected_components, last_seams, delete_outliers=True):
     # TODO create a quadtree of the edges to make the search easier
 
     # use the seams to cut them into graphs
-    graphs = cut_graph_with_seams(graph, last_seams)
+    graphs = cut_graph_with_seams(graph, last_seams, output_loc, nb_of_lives)
 
-    if delete_outliers:
+    if delete_outliers and len(graphs) != 1:
         # delete outliers
         graphs = detect_small_graphs(graphs)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    show_img(print_graph_on_img(img, graphs), save=True, show=False, name=os.path.join(result_path, 'graph/cut_graph.png'))
+    show_img(print_graph_on_img(img, graphs), save=True, show=False, name=os.path.join(output_loc, 'graph/cut_graph.png'))
     graphs_as_point_lists = graph_to_point_lists(graphs)
 
     # Create a working copy of the image to draw the CC convex hull & so
@@ -200,15 +199,13 @@ def get_polygons(img, connected_components, last_seams, delete_outliers=True):
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
         # get connected components
-        # TODO make this step for every line
         _, cc_properties = get_connected_components(polygon_img)
         polygon_coords.append(np.asarray(cc_properties[0].coords))
 
         nb_lines += 1
 
     # write into the xml file
-    # TODO polygon to string converter
-    writePAGEfile(os.path.join(result_path, 'polygons.xml'), polygon_to_string(polygon_coords))
+    writePAGEfile(os.path.join(output_loc, 'polygons.xml'), polygon_to_string(polygon_coords))
 
     # show_img(img, show=True, save=True, name='polgyons_t1.png')
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
@@ -241,34 +238,36 @@ def create_heat_map_visualization(ori_energy_map):
     return heatmap
 
 
-def prepare_image(img, cropping=True):
+def prepare_image(img, testing, cropping=True):
     # -------------------------------
     start = time.time()
     # -------------------------------
 
-    img[:, :, 0] = 0
-    img[:, :, 2] = 0
-    locations = np.where(img == 127)
-    img[:, :, 1] = 0
-    img[locations[0], locations[1]] = 255
-    if cropping:
-        locs = np.array(np.where(img == 255))[0:2, ]
-        img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
+    if testing:
+        img[:, :, 0] = 0
+        img[:, :, 2] = 0
+        locations = np.where(img == 127)
+        img[:, :, 1] = 0
+        img[locations[0], locations[1]] = 255
+        if cropping:
+            locs = np.array(np.where(img == 255))[0:2, ]
+            img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
-    # # Erase green (if any, but shouldn't have values here)
-    # img[:, :, 1] = 0
-    # # Find and remove boundaries (set to bg)
-    # boundaries = np.where(img == 128)
-    # img[boundaries[0], boundaries[1]] = 0
-    # # Find regular text and make it white
-    # locations = np.where(img == 8)
-    # img[locations[0], locations[1]] = 128
-    # # Find text+decoration and make it white
-    # locations = np.where(img == 12)
-    # img[locations[0], locations[1]] = 128
-    # # Erase red & blue (so we get rid of everything else, only green will be set)
-    # img[:, :, 0] = 0
-    # img[:, :, 2] = 0
+    else:
+        # Erase green (if any, but shouldn't have values here)
+        img[:, :, 1] = 0
+        # Find and remove boundaries (set to bg)
+        boundaries = np.where(img == 128)
+        img[boundaries[0], boundaries[1]] = 0
+        # Find regular text and make it white
+        locations = np.where(img == 8)
+        img[locations[0], locations[1]] = 128
+        # Find text+decoration and make it white
+        locations = np.where(img == 12)
+        img[locations[0], locations[1]] = 128
+        # Erase red & blue (so we get rid of everything else, only green will be set)
+        img[:, :, 0] = 0
+        img[:, :, 2] = 0
 
     # -------------------------------
     stop = time.time()
@@ -745,5 +744,9 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/test1.png', output_loc='')
+    extract_textline(input_loc='../data/test1.png',
+                     output_loc='../results/test',
+                     seam_every_x_pxl=5,
+                     nb_of_lives=0,
+                     testing=True)
     logging.info('Terminated')

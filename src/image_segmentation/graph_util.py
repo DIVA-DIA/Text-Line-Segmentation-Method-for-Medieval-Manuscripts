@@ -10,8 +10,6 @@ import cv2
 from scipy.spatial import Delaunay
 from shapely.geometry import LineString
 
-result_path = '../results/edge_live_10_test1'
-
 
 def createTINgraph(points):
     """
@@ -76,7 +74,7 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     return img
 
 
-def cut_graph_with_seams(graph, seams):
+def cut_graph_with_seams(graph, seams, output_loc, nb_of_lives):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -100,17 +98,17 @@ def cut_graph_with_seams(graph, seams):
     unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
 
     # delete the edges which get cut less then n times
-    unique_edges = unique_edges[occurrences > 10]
+    unique_edges = unique_edges[occurrences > nb_of_lives]
     # print(np.min(counter), np.max(counter))
     plt.hist(occurrences, bins='auto')
-    plt.savefig(os.path.join(result_path, 'histo/histo_without_reduction.png'))
-    plt.hist(occurrences[occurrences > 15], bins='auto')
-    plt.savefig(os.path.join(result_path, 'histo/histo_with_reduction.png'))
+    plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
+    plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
+    plt.savefig(os.path.join(output_loc, 'histo/histo_with_reduction.png'))
 
     graph.remove_edges_from(unique_edges)
 
     if nx.is_connected(graph):
-        return np.asarray([graph])
+        return list([graph])
 
     # -------------------------------
     stop = time.time()
