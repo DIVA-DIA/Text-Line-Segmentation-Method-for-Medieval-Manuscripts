@@ -18,8 +18,8 @@ from src.image_segmentation.textline_extractor import extract_textline
 param_list = {
     'penalty': [3000],
     'nb_of_iterations': [1],
-    'seam_every_x_pxl': [100],
-    'nb_of_lives': [0]}
+    'seam_every_x_pxl': [5],
+    'nb_of_lives': [10]}
 
 
 def is_image_file(filename):
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('--eval_tool', metavar='DIR',
                         default='../data/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
-    parser.add_argument('-j', default=8, type=int,
+    parser.add_argument('-j', default=32, type=int,
                         help='number of thread to use for parallel search')
     args = parser.parse_args()
 

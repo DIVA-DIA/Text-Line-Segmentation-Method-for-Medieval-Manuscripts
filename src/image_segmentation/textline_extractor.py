@@ -21,7 +21,7 @@ from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False,
+def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, save_polygon=False,
                      nb_of_iterations=1, seam_every_x_pxl=5, nb_of_lives=10, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
@@ -45,7 +45,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     img, connected_components, last_seams = separate_textlines(img, output_loc, penalty, save_heatmap, show_seams,
                                                                show, testing, seam_every_x_pxl, nb_of_iterations)
 
-    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save=True)
+    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save=save_polygon)
 
     logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
 
@@ -167,7 +167,7 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
     #############################################
     # Extract the contour of each CC
     # if the centroid is not on the area of the cc, replace centroid with random point on the area
-    nb_lines = 0
+    nb_line = 0
     polygon_coords = []
     for line in graphs_as_point_lists:
         cc_coords = []
@@ -192,7 +192,7 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
         overlay_graph = nx.minimum_spanning_tree(overlay_graph)
 
         # overlay
-        polygon_img = print_graph_on_img(polygon_img, [overlay_graph], color=(255, 255, 255), thickness=3)
+        polygon_img = print_graph_on_img(polygon_img, [overlay_graph], color=(255, 255, 255), thickness=1)
         cv2.fillPoly(polygon_img, cc_coords, color=(255, 255, 255))
 
         # for cc_coord in cc_coords:
@@ -200,21 +200,26 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
         # get connected components
-        polygon_coords.append(measure.find_contours(np.sum(polygon_img, axis=2), 0))
+        get_connected_components(polygon_img)
+        polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high'))
+
+        # show_img(polygon_img, show=False)
 
         if save:
             # overlay it with the original
-            for contour in polygon_coords[nb_lines]:
-                for p in contour:
-                    cv2.circle(poly_img_text, (np.int(p[1]), np.int(p[0])), 1, color=(0, 255, 255))
+            # for contour in polygon_coords[nb_line]:
+            #         cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 255, 255))
+            # take the biggest polygon
+            contour = polygon_coords[nb_line][0]
+            cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 0, 255))
 
-        nb_lines += 1
+        nb_line += 1
 
     # write into the xml file
     writePAGEfile(output_loc, polygon_to_string(polygon_coords))
 
     if save:
-        show_img(poly_img_text, show=True, save=True, name='polgyons_t1.png')
+        show_img(poly_img_text, show=False, save=True, name='polgyons_t2.png')
 
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
 
@@ -223,7 +228,7 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return nb_lines
+    return nb_line
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -373,97 +378,12 @@ def detect_outliers(area):
     return no_outliers
 
 
-def cluster(img, centroids, area, eps, min_samples):
-    # import matplotlib.pyplot as plt
-
-    # Attempt clustering with DBSCAN
-    X = centroids[:, 0]
-    X = (X - np.min(X)) / (np.max(X) - np.min(X))
-    area = (area - np.min(area)) / (np.max(area) - np.min(area))
-    tmp = np.zeros((X.shape[0], 2))
-    # tmp[:, 1] = area
-    tmp[:, 0] = X
-
-    # plt.figure()
-    # plt.scatter(X, area)
-    # plt.show()
-
-    X = tmp
-
-    # eps = 0.01  # centroids test1&2&3&4 (min sample 5) GT=4,16,13,29
-
-    db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
-
-    # Draw DBSCAN outliers
-    for i in range(0, len(centroids)):
-        # Draw outliers
-        if db.labels_[i] == -1:
-            cv2.circle(img, tuple([75, np.round(centroids[i, 0]).astype(np.int)]), radius=3,
-                       color=(0, 0, 127), thickness=3, lineType=1, shift=0)
-            # print('{}'.format(i))
-
-    # Remove outliers
-    centroids = centroids[db.labels_ != -1, :]
-    labels = db.labels_[db.labels_ != -1]
-    return centroids, labels
-
-
-def draw_clusters(img, centroids, labels):
-    # Draw and count the cluster
-    n_clusters = 1
-    clusters_lines = []
-    for i in range(0, len(centroids) - 1):
-        # Draw the line between the clusters
-        if labels[i] != labels[i + 1]:
-            # Count the cluster
-            n_clusters += 1
-            # Compute line location
-            clusters_lines.append((centroids[i, 0] + centroids[i + 1, 0]) / 2.0)
-            # Draw line
-            cv2.line(img, tuple([0, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
-                     tuple([4000, np.round(clusters_lines[n_clusters - 2]).astype(np.int)]),
-                     color=(0, 127, 0), thickness=4, lineType=8, shift=0)
-    return clusters_lines
-
-
 def find_cc_from_centroid(c, cc_properties):
     c[0], c[1] = c[1], c[0]
     for cc in cc_properties:
         if (np.asarray(cc.centroid[0:2]) == c).all():
             return cc
     return None
-
-
-def points_in_line(cc_properties, line, fast=False):
-    points = []
-    if fast:
-        points.extend(find_cc_from_centroid(line[0], cc_properties).coords[::3, 0:2])
-        points.extend(find_cc_from_centroid(line[-1], cc_properties).coords[::3, 0:2])
-    else:
-        for c in line:
-            cc = find_cc_from_centroid(c, cc_properties)
-            points.extend(cc.coords[::3, 0:2])
-    points = np.array(points)
-    return points
-
-
-def separate_in_bins(centroids, clusters_lines):
-    clusters_centroids = [[]]
-    l = 0
-    for c in zip(centroids):
-        if l == len(clusters_lines) or c[0][0] < clusters_lines[l]:
-            clusters_centroids[l].append(c[0])
-        else:
-            l += 1
-            clusters_centroids.append([])
-            clusters_centroids[l].append(c[0])
-
-    # Sort the bins according to the horizontal axis
-    for i in range(0, len(clusters_centroids)):
-        clusters_centroids[i] = np.asarray(clusters_centroids[i])
-        clusters_centroids[i] = clusters_centroids[i][np.argsort(clusters_centroids[i][:, 1]), :]
-
-    return clusters_centroids
 
 
 def blur_image(img, save_name="blur_image.png", save=False, show=False, filter_size=1000, horizontal=True):
@@ -695,9 +615,10 @@ def polygon_to_string(polygons):
     strings = []
     for polygon in polygons:
         line_string = []
-        for line in polygon:
-            for point in line:
-                line_string.append("{},{}".format(int(point[0]), int(point[1])))
+        for i, point in enumerate(polygon[0]):
+            if i % 2 == 0:
+                continue
+            line_string.append("{},{}".format(int(point[1]), int(point[0])))
         strings.append(' '.join(line_string))
 
     # -------------------------------
@@ -754,8 +675,15 @@ if __name__ == "__main__":
 
     print("{}".format(os.getcwd()))
     extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
-                     output_loc='../results/evaluation_v1/e-codices_fmb-cb-0055_0019r_max_gt_penalty_3000_iterations_1_seam_every_100_lives_0.xml',
-                     seam_every_x_pxl=100,
+                     output_loc='../results/evaluation_v1/e-codices_fmb-cb-0055_0019r_max_gt_penalty_3000_iterations_1_seam_every_5_lives_0.xml',
+                     save_polygon=True,
+                     seam_every_x_pxl=5,
                      nb_of_lives=0,
                      testing=False)
+    # extract_textline(input_loc='../data/test1.png',
+    #                  output_loc='../results/test/t.xml',
+    #                  save_polygon=True,
+    #                  seam_every_x_pxl=5,
+    #                  nb_of_lives=15,
+    #                  testing=True)
     logging.info('Terminated')
