@@ -100,10 +100,10 @@ def cut_graph_with_seams(graph, seams, output_loc, nb_of_lives):
     # delete the edges which get cut less then n times
     unique_edges = unique_edges[occurrences > nb_of_lives]
     # print(np.min(counter), np.max(counter))
-    plt.hist(occurrences, bins='auto')
-    plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
-    plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
-    plt.savefig(os.path.join(output_loc, 'histo/histo_with_reduction.png'))
+    # plt.hist(occurrences, bins='auto')
+    # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
+    # plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
+    # plt.savefig(os.path.join(output_loc, 'histo/histo_with_reduction.png'))
 
     graph.remove_edges_from(unique_edges)
 

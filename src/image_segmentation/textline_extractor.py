@@ -45,7 +45,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     img, connected_components, last_seams = separate_textlines(img, output_loc, penalty, save_heatmap, show_seams,
                                                                show, testing, seam_every_x_pxl, nb_of_iterations)
 
-    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives)
+    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save=True)
 
     logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
 
@@ -86,7 +86,7 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
     for i in range(nb_of_iterations):
         if i == 0:
             # Prepare image (filter only text, ...)
-            img = prepare_image(img,testing=testing, cropping=False)
+            img = prepare_image(img, testing=testing, cropping=False)
 
         # create the engergy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
@@ -121,7 +121,7 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
         else:
             last_seams = seams
 
-        show_img(heatmap, save=True, name=os.path.join(output_loc, 'energy_map.png'),
+        show_img(heatmap, save=False, name=os.path.join(output_loc, 'energy_map.png'),
                  show=show)
 
     # -------------------------------
@@ -132,7 +132,7 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
     return img, cc, last_seams
 
 
-def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, delete_outliers=True):
+def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save, delete_outliers=True):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
@@ -158,11 +158,11 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    show_img(print_graph_on_img(img, graphs), save=True, show=False, name=os.path.join(output_loc, 'graph/cut_graph.png'))
+    show_img(print_graph_on_img(img, graphs), save=False, show=False, name=os.path.join(output_loc, 'graph/cut_graph.png'))
     graphs_as_point_lists = graph_to_point_lists(graphs)
 
     # Create a working copy of the image to draw the CC convex hull & so
-    cc_img = np.zeros(img.shape[0:2])
+    poly_img_text = np.asarray(img.copy(), dtype=np.float64)
 
     #############################################
     # Extract the contour of each CC
@@ -192,22 +192,30 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
         overlay_graph = nx.minimum_spanning_tree(overlay_graph)
 
         # overlay
-        polygon_img = print_graph_on_img(polygon_img, [overlay_graph], color=(255, 255, 255), thickness=1)
+        polygon_img = print_graph_on_img(polygon_img, [overlay_graph], color=(255, 255, 255), thickness=3)
         cv2.fillPoly(polygon_img, cc_coords, color=(255, 255, 255))
+
         # for cc_coord in cc_coords:
         #     # add cc areas to the image
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
         # get connected components
-        _, cc_properties = get_connected_components(polygon_img)
-        polygon_coords.append(np.asarray(cc_properties[0].coords))
+        polygon_coords.append(measure.find_contours(np.sum(polygon_img, axis=2), 0))
+
+        if save:
+            # overlay it with the original
+            for contour in polygon_coords[nb_lines]:
+                for p in contour:
+                    cv2.circle(poly_img_text, (np.int(p[1]), np.int(p[0])), 1, color=(0, 255, 255))
 
         nb_lines += 1
 
     # write into the xml file
-    writePAGEfile(os.path.join(output_loc, 'polygons.xml'), polygon_to_string(polygon_coords))
+    writePAGEfile(output_loc, polygon_to_string(polygon_coords))
 
-    # show_img(img, show=True, save=True, name='polgyons_t1.png')
+    if save:
+        show_img(poly_img_text, show=True, save=True, name='polgyons_t1.png')
+
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
 
     # -------------------------------
@@ -687,8 +695,9 @@ def polygon_to_string(polygons):
     strings = []
     for polygon in polygons:
         line_string = []
-        for point in polygon:
-            line_string.append("{},{}".format(point[0], point[1]))
+        for line in polygon:
+            for point in line:
+                line_string.append("{},{}".format(int(point[0]), int(point[1])))
         strings.append(' '.join(line_string))
 
     # -------------------------------
@@ -744,9 +753,9 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/test1.png',
-                     output_loc='../results/test',
-                     seam_every_x_pxl=5,
+    extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
+                     output_loc='../results/evaluation_v1/e-codices_fmb-cb-0055_0019r_max_gt_penalty_3000_iterations_1_seam_every_100_lives_0.xml',
+                     seam_every_x_pxl=100,
                      nb_of_lives=0,
-                     testing=True)
+                     testing=False)
     logging.info('Terminated')

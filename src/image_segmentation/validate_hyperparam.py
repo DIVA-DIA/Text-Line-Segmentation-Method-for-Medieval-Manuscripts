@@ -18,7 +18,8 @@ from src.image_segmentation.textline_extractor import extract_textline
 param_list = {
     'penalty': [3000],
     'nb_of_iterations': [1],
-    'seam_every_x_pxl': [5]}
+    'seam_every_x_pxl': [100],
+    'nb_of_lives': [0]}
 
 
 def is_image_file(filename):
@@ -50,10 +51,11 @@ def compute_for_all(arg_container):
     filename_without_ext = os.path.basename(input_loc).split('.')[0]
     params['input_loc'] = input_loc
     params['output_loc'] = os.path.join(args.output_path,
-                                        filename_without_ext + '_penalty_{}_iterations_{}_seam_every_{}.xml'.format(
+                                        filename_without_ext + '_penalty_{}_iterations_{}_seam_every_{}_lives_{}.xml'.format(
                                             params['penalty'],
                                             params['nb_of_iterations'],
-                                            params['seam_every_x_pxl'],))
+                                            params['seam_every_x_pxl'],
+                                            params['nb_of_lives']))
     output_loc = params['output_loc']
     try:
         num_lines = extract_textline(**params)
@@ -97,15 +99,17 @@ def main(args):
             results = list(pool.map(compute_for_all, zip(input_images, itertools.repeat(params), itertools.repeat(args))))
             param_scores.append(results)
             score = np.average([item[1] for item in results])
-            print('penalty reduction: {} # of iterations: {} seam every x pixel: {} score: {:.2f}\n'.format(
+            print('penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
                 params['penalty'],
                 params['nb_of_iterations'],
                 params['seam_every_x_pxl'],
+                params['nb_of_lives'],
                 score))
-            f.write('penalty reduction: {} # of iterations: {} seam every x pixel: {} score: {:.2f}\n'.format(
+            f.write('penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
                 params['penalty'],
                 params['nb_of_iterations'],
                 params['seam_every_x_pxl'],
+                params['nb_of_lives'],
                 score))
     pool.close()
 
