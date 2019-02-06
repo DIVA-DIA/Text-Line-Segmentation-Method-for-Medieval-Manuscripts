@@ -74,7 +74,7 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     return img
 
 
-def cut_graph_with_seams(graph, seams, output_loc, nb_of_lives):
+def cut_graph_with_seams(graph, seams, nb_of_lives, root_output_path):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -100,10 +100,10 @@ def cut_graph_with_seams(graph, seams, output_loc, nb_of_lives):
     # delete the edges which get cut less then n times
     unique_edges = unique_edges[occurrences > nb_of_lives]
     # print(np.min(counter), np.max(counter))
-    # plt.hist(occurrences, bins='auto')
+    plt.hist(occurrences, bins='auto')
     # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
-    # plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
-    # plt.savefig(os.path.join(output_loc, 'histo/histo_with_reduction.png'))
+    plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
+    plt.savefig(os.path.join(root_output_path, 'histo', 'histogramm_with_reduction_and_without.png'))
 
     graph.remove_edges_from(unique_edges)
 

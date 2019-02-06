@@ -12,16 +12,16 @@ import numpy as np
 import networkx as nx
 from scipy.spatial import distance
 from skimage import measure
-from sklearn.cluster import DBSCAN
 
 #######################################################################################################################
 from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
     graph_to_point_lists, detect_small_graphs
+from src.image_segmentation.util import create_folder_structure
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False, save_polygon=False,
+def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False,
                      nb_of_iterations=1, seam_every_x_pxl=5, nb_of_lives=10, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
@@ -37,15 +37,18 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     start_whole = time.time()
     # -------------------------------
 
+    # creating the folders and getting the new root folder
+    root_output_path = create_folder_structure(input_loc, output_loc)
+
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = separate_textlines(img, output_loc, penalty, save_heatmap, show_seams,
+    img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams,
                                                                show, testing, seam_every_x_pxl, nb_of_iterations)
 
-    nb_polygons = get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save=save_polygon)
+    nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives)
 
     logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
 
@@ -60,7 +63,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
 #######################################################################################################################
 
 
-def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show, testing, seam_every_x_pxl =5, nb_of_iterations=1):
+def separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams, show, testing, seam_every_x_pxl =5, nb_of_iterations=1):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -103,6 +106,8 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
         else:
             heatmap = np.copy(ori_energy_map)
 
+        show_img(heatmap, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_without_seams.png'))
+
         # list with all seams
         seams = []
 
@@ -121,8 +126,7 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
         else:
             last_seams = seams
 
-        show_img(heatmap, save=False, name=os.path.join(output_loc, 'energy_map.png'),
-                 show=show)
+        show_img(heatmap, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'))
 
     # -------------------------------
     stop = time.time()
@@ -132,7 +136,7 @@ def separate_textlines(img, output_loc, penalty, save_heatmap, show_seams, show,
     return img, cc, last_seams
 
 
-def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives, save, delete_outliers=True):
+def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, delete_outliers=True):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
@@ -149,8 +153,10 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
     graph = createTINgraph(centroids)
     # TODO create a quadtree of the edges to make the search easier
 
+    show_img(print_graph_on_img(img, graph), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'uncut_graph.png'))
+
     # use the seams to cut them into graphs
-    graphs = cut_graph_with_seams(graph, last_seams, output_loc, nb_of_lives)
+    graphs = cut_graph_with_seams(graph, last_seams, nb_of_lives, root_output_path)
 
     if delete_outliers and len(graphs) != 1:
         # delete outliers
@@ -158,7 +164,7 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    show_img(print_graph_on_img(img, graphs), save=False, show=False, name=os.path.join(output_loc, 'graph/cut_graph.png'))
+    show_img(print_graph_on_img(img, graphs), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'cut_graph.png'))
     graphs_as_point_lists = graph_to_point_lists(graphs)
 
     # Create a working copy of the image to draw the CC convex hull & so
@@ -203,23 +209,19 @@ def get_polygons(img, connected_components, last_seams, output_loc, nb_of_lives,
         get_connected_components(polygon_img)
         polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high'))
 
-        # show_img(polygon_img, show=False)
-
-        if save:
-            # overlay it with the original
-            # for contour in polygon_coords[nb_line]:
-            #         cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 255, 255))
-            # take the biggest polygon
-            contour = polygon_coords[nb_line][0]
-            cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 0, 255))
+        # overlay it with the original
+        # for contour in polygon_coords[nb_line]:
+        #         cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 255, 255))
+        # take the biggest polygon
+        contour = polygon_coords[nb_line][0]
+        cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(255, 255, 255))
 
         nb_line += 1
 
     # write into the xml file
-    writePAGEfile(output_loc, polygon_to_string(polygon_coords))
+    writePAGEfile(root_output_path, polygon_to_string(polygon_coords))
 
-    if save:
-        show_img(poly_img_text, show=False, save=True, name='polgyons_t2.png')
+    show_img(poly_img_text, show=False, save=True, path=os.path.join(root_output_path, 'polygons_on_text.png'))
 
     # show_img(cc_img, show=True, save=True, name='polgyons_t1_fill.png')
 
@@ -648,13 +650,13 @@ def prepare_energy(ori_map, y):
     return energy_map
 
 
-def show_img(img, save=False, name='experiment.png', show=True):
+def show_img(img, save=False, path='experiment.png', show=True):
     if show:
         cv2.imshow('img', img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     if save:
-        cv2.imwrite(name, img)
+        cv2.imwrite(path, img)
 
 
 #######################################################################################################################
@@ -675,14 +677,12 @@ if __name__ == "__main__":
 
     print("{}".format(os.getcwd()))
     extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
-                     output_loc='../results/evaluation_v1/e-codices_fmb-cb-0055_0019r_max_gt_penalty_3000_iterations_1_seam_every_5_lives_0.xml',
-                     save_polygon=True,
+                     output_loc='../results',
                      seam_every_x_pxl=5,
-                     nb_of_lives=0,
+                     nb_of_lives=10,
                      testing=False)
     # extract_textline(input_loc='../data/test1.png',
     #                  output_loc='../results/test/t.xml',
-    #                  save_polygon=True,
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=15,
     #                  testing=True)
