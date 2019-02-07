@@ -21,14 +21,12 @@ from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, show=False,
-                     nb_of_iterations=1, seam_every_x_pxl=5, nb_of_lives=10, testing=False):
+def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,
+                     nb_of_lives=10, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
-    :param output_loc: path to save generated PAGE XML
-    :param a: param_a
-    :param b: param_b
+    :param output_loc: path to the output folder
     """
 
     # print("{}".format(read_max_textline_from_file('./../data/e-codices_fmb-cb-0055_0019r_max_gt.xml')))
@@ -202,15 +200,13 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
         #     # add cc areas to the image
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
-        # get connected components
+        # get contour points of the binary polygon image
         polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high'))
 
-        # overlay it with the original
-        # for contour in polygon_coords[nb_line]:
-        #         cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(0, 255, 255))
         # take the biggest polygon
         contour = polygon_coords[nb_line][0]
-        cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(255, 255, 255))
+        # print the polygon on the text
+        cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(248, 24, 148))
 
         nb_line += 1
 
