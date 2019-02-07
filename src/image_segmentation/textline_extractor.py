@@ -21,7 +21,7 @@ from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, penalty=3000, show=False,
+def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, show=False,
                      nb_of_iterations=1, seam_every_x_pxl=5, nb_of_lives=10, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
@@ -38,15 +38,15 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
     # -------------------------------
 
     # creating the folders and getting the new root folder
-    root_output_path = create_folder_structure(input_loc, output_loc)
+    root_output_path = create_folder_structure(input_loc, output_loc, (penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
 
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams,
-                                                               show, testing, seam_every_x_pxl, nb_of_iterations)
+    img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, show_seams,
+                                                                testing, seam_every_x_pxl, nb_of_iterations)
 
     nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives)
 
@@ -63,7 +63,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, save_heatmap=True, 
 #######################################################################################################################
 
 
-def separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams, show, testing, seam_every_x_pxl =5, nb_of_iterations=1):
+def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam_every_x_pxl =5, nb_of_iterations=1):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -91,6 +91,8 @@ def separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams,
             # Prepare image (filter only text, ...)
             img = prepare_image(img, testing=testing, cropping=False)
 
+        show_img(img, save=True, show=False, path='../results/real_img_v2.png')
+
         # create the engergy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
@@ -100,13 +102,10 @@ def separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams,
         # show_img((ori_enegery_map/max_en) * 255)
         # energy_map_representation = np.copy(ori_energy_map)
 
-        if save_heatmap:
-            # visualize the energy map as heatmap
-            heatmap = create_heat_map_visualization(ori_energy_map)
-        else:
-            heatmap = np.copy(ori_energy_map)
+        # visualize the energy map as heatmap
+        heatmap = create_heat_map_visualization(ori_energy_map)
 
-        show_img(heatmap, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_without_seams.png'))
+        show_img(heatmap, show=False, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_without_seams.png'))
 
         # list with all seams
         seams = []
@@ -126,7 +125,7 @@ def separate_textlines(img, root_output_path, penalty, save_heatmap, show_seams,
         else:
             last_seams = seams
 
-        show_img(heatmap, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'))
+        show_img(heatmap, show=False, save=True, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'))
 
     # -------------------------------
     stop = time.time()
@@ -153,7 +152,7 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
     graph = createTINgraph(centroids)
     # TODO create a quadtree of the edges to make the search easier
 
-    show_img(print_graph_on_img(img, graph), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'uncut_graph.png'))
+    # show_img(print_graph_on_img(img, graph), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'uncut_graph.png'))
 
     # use the seams to cut them into graphs
     graphs = cut_graph_with_seams(graph, last_seams, nb_of_lives, root_output_path)
@@ -206,7 +205,6 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
         # get connected components
-        get_connected_components(polygon_img)
         polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high'))
 
         # overlay it with the original
@@ -219,7 +217,7 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
         nb_line += 1
 
     # write into the xml file
-    writePAGEfile(root_output_path, polygon_to_string(polygon_coords))
+    writePAGEfile(os.path.join(root_output_path, 'polygons.xml'), polygon_to_string(polygon_coords))
 
     show_img(poly_img_text, show=False, save=True, path=os.path.join(root_output_path, 'polygons_on_text.png'))
 
@@ -269,20 +267,19 @@ def prepare_image(img, testing, cropping=True):
             img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
     else:
-        # Erase green (if any, but shouldn't have values here)
+        # Erase green just in case
         img[:, :, 1] = 0
         # Find and remove boundaries (set to bg)
-        boundaries = np.where(img == 128)
-        img[boundaries[0], boundaries[1]] = 0
-        # Find regular text and make it white
-        locations = np.where(img == 8)
-        img[locations[0], locations[1]] = 128
-        # Find text+decoration and make it white
-        locations = np.where(img == 12)
-        img[locations[0], locations[1]] = 128
-        # Erase red & blue (so we get rid of everything else, only green will be set)
-        img[:, :, 0] = 0
-        img[:, :, 2] = 0
+        locations = np.where(img == 128)
+        img[locations[0], locations[1]] = 0
+        # Find regular text and text + decoration
+        locations_text = np.where(img == 8)
+        locations_text_comment = np.where(img == 12)
+        # Wipe the image
+        img[:, :, :] = 0
+        # Set the text to be white
+        img[locations_text[0], locations_text[1]] = 255
+        img[locations_text_comment[0], locations_text_comment[1]] = 255
 
     # -------------------------------
     stop = time.time()
@@ -425,7 +422,7 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     center_template = np.array([[np.ceil(side_length / 2), np.ceil(side_length / 2)]])
     pixel_coordinates = np.asarray([[x, y] for x in range(template.shape[0]) for y in range(template.shape[1])])
 
-    # calculate template
+    # calculate distance template
     # TODO save template for speed up
     if asymmetric:
         template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates]) \
@@ -453,7 +450,6 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
         # need max
         distance_matrix[v_range1, h_range1] = np.minimum(template[v_range2, h_range2],
                                                          distance_matrix[v_range1, h_range1])
-        # show_img(create_heat_map_visualization(distance_matrix))
 
     # -------------------------------
     stop = time.time()
@@ -676,14 +672,14 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    # extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    #                  output_loc='../results',
+    #                  seam_every_x_pxl=5,
+    #                  nb_of_lives=10,
+    #                  testing=False)
+    extract_textline(input_loc='../data/test1.png',
                      output_loc='../results',
                      seam_every_x_pxl=5,
                      nb_of_lives=10,
-                     testing=False)
-    # extract_textline(input_loc='../data/test1.png',
-    #                  output_loc='../results/test/t.xml',
-    #                  seam_every_x_pxl=5,
-    #                  nb_of_lives=15,
-    #                  testing=True)
+                     testing=True)
     logging.info('Terminated')
