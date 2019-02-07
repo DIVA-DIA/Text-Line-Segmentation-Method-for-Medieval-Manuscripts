@@ -2,7 +2,7 @@ import argparse
 import itertools
 import os
 import time
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from subprocess import Popen, PIPE, STDOUT
 
 import numpy as np
@@ -76,12 +76,18 @@ def compute_for_all(arg_container):
         return [params, score, logs]
     num_gt_lines = read_max_textline_from_file(input_xml)
 
+    line_extraction_root_folder = filename_without_ext + '_penalty_{}_iterations_{}_seams_{}_lives_{}'.format(
+                                                            params['penalty'],
+                                                            params['nb_of_iterations'],
+                                                            params['seam_every_x_pxl'],
+                                                            params['nb_of_lives'])
+
     if True or num_gt_lines == num_lines:
         p = Popen(['java', '-jar', args.eval_tool,
                    '-igt', input_pxl_img,
                    '-xgt', input_xml,
-                   '-xp', os.path.join(output_loc, filename_without_ext, 'polygon.xml')
-                   ], stdout=PIPE, stderr=STDOUT)
+                   '-xp', os.path.join(output_loc, line_extraction_root_folder, 'polygons.xml'),
+                   '-csv'], stdout=PIPE, stderr=STDOUT)
         logs = [line for line in p.stdout]
         score = get_score(logs)
     else:
@@ -107,7 +113,10 @@ def main(args):
         os.makedirs(args.output_path)
     param_scores = []
 
-    pool = Pool(args.j)
+    if args.j == 0:
+        pool = Pool(cpu_count())
+    else:
+        pool = Pool(args.j)
 
     with open(os.path.join(args.output_path, 'logs.txt'), 'w') as f:
         for i, params in enumerate(ParameterGrid(param_list)):
@@ -169,7 +178,7 @@ if __name__ == "__main__":
     parser.add_argument('--eval_tool', metavar='DIR',
                         default='../data/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
-    parser.add_argument('-j', default=32, type=int,
+    parser.add_argument('-j', default=0, type=int,
                         help='number of thread to use for parallel search')
     args = parser.parse_args()
 
