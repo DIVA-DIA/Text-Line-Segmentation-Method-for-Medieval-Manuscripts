@@ -91,8 +91,6 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
             # Prepare image (filter only text, ...)
             img = prepare_image(img, testing=testing, cropping=False)
 
-        show_img(img, save=True, show=False, path='../results/real_img_v2.png')
-
         # create the engergy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
