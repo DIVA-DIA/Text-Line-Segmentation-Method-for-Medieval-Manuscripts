@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.model_selection import ParameterGrid
 
 from src.image_segmentation.XMLhandler import read_max_textline_from_file
+from src.image_segmentation.overall_score import gather_stats
 from src.image_segmentation.textline_extractor import extract_textline
 
 # Specify the list of parameters to grid-search over.
@@ -156,6 +157,7 @@ def main(args):
     #         score_matrix.append([eps, min_samples, merge_ratio, score])
 
     np.save('param_scores.npy', param_scores)
+    gather_stats(args.output_path)
     print('Total time taken: {:.2f}'.format(time.time() - tic))
     return
 
