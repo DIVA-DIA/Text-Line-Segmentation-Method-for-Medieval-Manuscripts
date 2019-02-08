@@ -19,7 +19,7 @@ param_list = {
     'penalty': [3000],
     'nb_of_iterations': [1],
     'seam_every_x_pxl': [5],
-    'nb_of_lives': [10]}
+    'nb_of_lives': [0]}
 
 
 def is_image_file(filename):
@@ -52,8 +52,8 @@ def get_list_xmls(dir):
 
 def get_score(logs):
     try:
-        assert str(logs[-13]).split(' ')[-4:-2] == ['line', 'IU']
-        score = float(str(logs[-13]).split(' ')[-1][:-3])
+        assert str(logs[-15]).split(' ')[-4:-2] == ['line', 'IU']
+        score = float(str(logs[-15]).split(' ')[-1][:-3])
     except:
         print('Not line IU')
         score = 0.0
@@ -61,10 +61,11 @@ def get_score(logs):
 
 
 def compute_for_all(arg_container):
-    input_pxl_img, input_xml, params, args = arg_container
+    input_pxl_img, input_path_xml, params, args = arg_container
     filename_without_ext = os.path.basename(input_pxl_img).split('.')[0]
     params['input_loc'] = input_pxl_img
     params['output_loc'] = args.output_path
+    input_xml = os.path.join(input_path_xml, filename_without_ext + '.xml')
 
     output_loc = params['output_loc']
     try:
@@ -98,16 +99,13 @@ def compute_for_all(arg_container):
 
 
 def main(args):
+    # TODO make a new root folder which is the time so that we can make multiple runs for the same output folder
     # TODO give it as parameter
     global param_list
     tic = time.time()
     input_images = []
     for path in args.input_folders_pxl:
         input_images.append(get_list_images(path))
-
-    input_xmls = []
-    for path in args.input_folders_xml:
-        input_xmls.append(get_list_xmls(path))
 
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
@@ -123,7 +121,8 @@ def main(args):
             print('{} of {} parameters processed.'.format(i, len(ParameterGrid(param_list))))
             # iterate over the different dataset folders
             for j, dataset in enumerate(input_images):
-                results = list(pool.map(compute_for_all, zip(dataset, input_xmls[j], itertools.repeat(params), itertools.repeat(args))))
+                results = list(pool.map(compute_for_all, zip(dataset, itertools.repeat(args.input_folders_xml[j]),
+                                                             itertools.repeat(params), itertools.repeat(args))))
                 param_scores.append(results)
                 score = np.average([item[1] for item in results])
                 print('penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
