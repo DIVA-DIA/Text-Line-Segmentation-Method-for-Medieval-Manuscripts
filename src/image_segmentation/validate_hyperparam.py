@@ -16,11 +16,6 @@ from src.image_segmentation.textline_extractor import extract_textline
 # param_list = {'eps': [0.0061],
 #               'min_samples': [3, 4],
 #               'merge_ratio': [0.8]}
-param_list = {
-    'penalty': [3000],
-    'nb_of_iterations': [1],
-    'seam_every_x_pxl': [5],
-    'nb_of_lives': [0]}
 
 
 def is_image_file(filename):
@@ -102,7 +97,11 @@ def compute_for_all(arg_container):
 def main(args):
     # TODO make a new root folder which is the time so that we can make multiple runs for the same output folder
     # TODO give it as parameter
-    global param_list
+    param_list = {
+        'penalty': [args.penalty],
+        'nb_of_iterations': [args.iter],
+        'seam_every_x_pxl': [args.pxl_per_seam],
+        'nb_of_lives': [args.edge_lives]}
     tic = time.time()
     input_images = []
     for path in args.input_folders_pxl:
@@ -174,6 +173,16 @@ if __name__ == "__main__":
 
     parser.add_argument('--output_path', metavar='DIR',
                         help='path to store output files')
+
+    # method parameters
+    parser.add_argument('--penalty', type=int,
+                        help='path to store output files')
+    parser.add_argument('--pxl_per_seam', type=int,
+                        help='how many pixels between the seams')
+    parser.add_argument('--edge_lives', type=int,
+                        help='amount of lives an edge has')
+    parser.add_argument('--iter', type=int, default=1,
+                        help='number of iterations')
 
     # optinal arguments
     parser.add_argument('--eval_tool', metavar='DIR',
