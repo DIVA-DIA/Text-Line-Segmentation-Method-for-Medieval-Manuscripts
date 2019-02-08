@@ -94,19 +94,48 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, root_output_path):
             if line_edge.intersects(seam):
                 edges_to_remove.append(edge)
 
-    # getting unique edges and couting them
+    # getting unique edges and counting them (how many times they where hit by a seam)
     unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
-
+    weights = [graph.edges[edge]['weight'] for edge in unique_edges]
     # delete the edges which get cut less then n times
-    unique_edges = unique_edges[occurrences > nb_of_lives]
-    # print(np.min(counter), np.max(counter))
+    # unique_edges = unique_edges[occurrences > nb_of_lives]
+
+    # create histogram and save it
     plt.hist(occurrences, bins='auto')
     # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
     plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
-    plt.savefig(os.path.join(root_output_path, 'histo', 'histogramm_with_reduction_and_without.png'))
+    plt.savefig(os.path.join(root_output_path, 'histo', 'histogram_with_reduction_and_without.png'))
 
+    # remove the edges from the graph
     graph.remove_edges_from(unique_edges)
 
+    if nx.is_connected(graph):
+        return list([graph])
+
+    # get the graphs
+    graphs = np.asarray(list(nx.connected_component_subgraphs(graph)))
+
+    # detect the small ones
+    small_graphs = detect_small_graphs(graphs)
+
+    # list of edges to restore in the graph
+    edges_to_add = []
+
+    for small_graph in small_graphs:
+        # the indices of all edges which where cut from the given (small)graph
+        edge_idxs = np.unique([np.where(unique_edges == node)[0] for node in list(small_graph.nodes)])
+        # find the index of the edge with the least hits
+        min_hit_edge_idx = np.argmin(occurrences[edge_idxs])
+        # find the index in the unique edges array
+        min_edge_idx = edge_idxs[min_hit_edge_idx]
+        # get edge to restore and add it to the list of edges to add
+        edge = unique_edges[min_edge_idx]
+        edges_to_add.append((edge[0], edge[1], weights[min_edge_idx]))
+
+    # add again the edges
+    graph.add_weighted_edges_from(edges_to_add)
+
+    # check again if the graph is still connected
     if nx.is_connected(graph):
         return list([graph])
 
@@ -129,12 +158,12 @@ def detect_small_graphs(graphs):
 
     copy = [np.asarray(list(g.nodes)) for g in graphs]
     graph_sizes = np.asarray([g.size for g in copy])
-    # threshold which graphs to discard
-    # too_small = abs(graph_sizes - np.mean(graph_sizes)) < 3 * np.std(graph_sizes)
+    # threshold which graphs are consideret as small
+    too_small = graph_sizes < 0.3 * np.mean(graph_sizes)
 
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
     # return graphs[too_small]
-    return graphs[graph_sizes > 5]
+    return graphs[too_small]

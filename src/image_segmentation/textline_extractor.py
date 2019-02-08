@@ -15,7 +15,7 @@ from skimage import measure
 
 #######################################################################################################################
 from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
-    graph_to_point_lists, detect_small_graphs
+    graph_to_point_lists
 from src.image_segmentation.util import create_folder_structure
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.XMLhandler import writePAGEfile
@@ -152,10 +152,6 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
 
     # use the seams to cut them into graphs
     graphs = cut_graph_with_seams(graph, last_seams, nb_of_lives, root_output_path)
-
-    if delete_outliers and len(graphs) != 1:
-        # delete outliers
-        graphs = detect_small_graphs(graphs)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
@@ -666,14 +662,14 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    # extract_textline(input_loc='../data/18/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    extract_textline(input_loc='../data/A/19/e-codices_fmb-cb-0055_0019r_max_gt.png',
+                     output_loc='../results',
+                     seam_every_x_pxl=5,
+                     nb_of_lives=0,
+                     testing=False)
+    # extract_textline(input_loc='../data/test1.png',
     #                  output_loc='../results',
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=10,
-    #                  testing=False)
-    extract_textline(input_loc='../data/test1.png',
-                     output_loc='../results',
-                     seam_every_x_pxl=5,
-                     nb_of_lives=10,
-                     testing=True)
+    #                  testing=True)
     logging.info('Terminated')
