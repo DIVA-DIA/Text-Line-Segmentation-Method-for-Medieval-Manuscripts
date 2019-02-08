@@ -107,8 +107,16 @@ def main(args):
     for path in args.input_folders_pxl:
         input_images.append(get_list_images(path))
 
+    # create output path for run
+    args.output_path = os.path.join(args.output_path, 'pentaly_{}_seams_{}_lives_{}_iter_{}_t_{}'.format(
+                                                                args.penalty,
+                                                                args.pxl_per_seam,
+                                                                args.edge_lives,
+                                                                args.iter,
+                                                                time.strftime('%Y%m%d%H%M%S', time.localtime()))
+                                                                )
     if not os.path.exists(args.output_path):
-        os.makedirs(args.output_path)
+        os.makedirs(os.path.join(args.output_path))
     param_scores = []
 
     if args.j == 0:
@@ -166,10 +174,10 @@ if __name__ == "__main__":
                                                  'segmentation.')
     # Required arguments
     parser.add_argument('--input_folders_pxl', nargs='+', type=str,
-                        help='path to folders containing pixel-gt')
+                        help='path to folders containing pixel-gt (e.g. /dataset/CB55/test-m /dataset/CSG18/test-m /dataset/CSG863/test-m)')
 
     parser.add_argument('--input_folders_xml', nargs='+', type=str,
-                        help='path to folders containing xml-gt')
+                        help='path to folders containing xml-gt (e.g. /dataset/CB55/test-page /dataset/CSG18/test-page /dataset/CSG863/test-page)')
 
     parser.add_argument('--output_path', metavar='DIR',
                         help='path to store output files')
