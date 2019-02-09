@@ -5,9 +5,9 @@ from src.image_segmentation.evaluate_algorithm import evaluate
 
 INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m", "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
 INPUT_FOLDERS_XML = ["/dataset/CB55/test-page", "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
-OUTPUT_FOLDER = ["./output/"]
+OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
-EVAL_TOOL = "./data/LineSegmentationEvaluator.jar"
+EVAL_TOOL = "./src/data/LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
