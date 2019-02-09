@@ -22,7 +22,7 @@ from src.image_segmentation.XMLhandler import writePAGEfile
 
 
 def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,
-                     nb_of_lives=10, testing=False):
+                     nb_of_lives=10, too_small_pc=0.3, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -46,7 +46,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
     img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, show_seams,
                                                                 testing, seam_every_x_pxl, nb_of_iterations)
 
-    nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives)
+    nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc)
 
     logging.info("Amount of graphs: {amount}".format(amount=nb_polygons))
 
@@ -131,7 +131,7 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
     return img, cc, last_seams
 
 
-def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, delete_outliers=True):
+def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc):
     # Mathias suggestion
     # compute the list of CC -> get them as parameter
     # for each pair of cc count how many times they were not separated
@@ -151,7 +151,7 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
     # show_img(print_graph_on_img(img, graph), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'uncut_graph.png'))
 
     # use the seams to cut them into graphs
-    graphs = cut_graph_with_seams(graph, last_seams, nb_of_lives, root_output_path)
+    graphs = cut_graph_with_seams(graph, last_seams, nb_of_lives, too_small_pc, root_output_path)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
@@ -662,13 +662,13 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/A/19/e-codices_fmb-cb-0055_0019r_max_gt.png',
-                     output_loc='../results',
+    extract_textline(input_loc='../data/failed/e-codices_fmb-cb-0055_0098v_max.png',
+                     output_loc='../results/fail',
                      seam_every_x_pxl=5,
                      nb_of_lives=0,
                      testing=False)
     # extract_textline(input_loc='../data/test1.png',
-    #                  output_loc='../results',
+    #                  output_loc='../results/exp',
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=10,
     #                  testing=True)

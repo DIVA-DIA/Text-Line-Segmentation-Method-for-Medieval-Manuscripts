@@ -191,6 +191,9 @@ if __name__ == "__main__":
                         help='amount of lives an edge has')
     parser.add_argument('--iter', type=int, default=1,
                         help='number of iterations')
+    parser.add_argument('--too_small_pc', type=float, default=0.3,
+                        help='describes the percentage of the mean of the size of the graph to be considered small'
+                             ' (merging).')
 
     # optinal arguments
     parser.add_argument('--eval_tool', metavar='DIR',
