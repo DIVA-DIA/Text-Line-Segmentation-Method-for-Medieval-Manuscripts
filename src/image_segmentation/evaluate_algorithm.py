@@ -31,7 +31,7 @@ def get_score(logs):
         assert str(logs[-15]).split(' ')[-4:-2] == ['line', 'IU']
         score = float(str(logs[-15]).split(' ')[-1][:-3])
     except:
-        print('Not line IU')
+        # print('Not line IU')
         score = 0.0
     return score
 
@@ -71,8 +71,6 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # TODO make a new root folder which is the time so that we can make multiple runs for the same output folder
     # TODO give it as parameter
 
-
-
     # Select the number of threads
     if j == 0:
         pool = Pool(processes=cpu_count())
@@ -102,28 +100,31 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
 
-    # For each file run and log
-    with open(os.path.join(output_path, 'logs.txt'), 'w') as f:
-        # Iterate over the different dataset folders
-        param_list = dict(penalty=penalty, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
-        results = list(pool.starmap(compute_for_all, zip(input_images,
-                                                    input_xml,
-                                                    itertools.repeat(output_path),
-                                                    itertools.repeat(param_list),
-                                                    itertools.repeat(eval_tool))))
+    # input_images = [input_images[0]]
+    # input_xml = [input_xml[0]]
 
-        score = np.average([item[0] for item in results])
-        log_message = 'penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
-            penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives, score)
-        f.write('Results for dataset {} \n'.format(os.path.dirname(os.path.dirname(image[0]))))
-        f.write(log_message)
-        print(log_message)
+    # For each file run
+    param_list = dict(penalty=penalty, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
+    results = list(pool.starmap(compute_for_all, zip(input_images,
+                                                input_xml,
+                                                itertools.repeat(output_path),
+                                                itertools.repeat(param_list),
+                                                itertools.repeat(eval_tool))))
     pool.close()
 
+    # score = np.average([item[0] for item in results])
+
+    # with open(os.path.join(output_path, 'logs.txt'), 'w') as f:
+    #     log_message = 'penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
+    #         penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives, score)
+    #     f.write('Results for dataset {} \n'.format(os.path.dirname(os.path.dirname(image[0]))))
+    #     f.write(log_message)
+    #     print(log_message)
+
     np.save('results.npy', results)
-    gather_stats(output_path)
-    print('Total time taken: {:.2f}'.format(time.time() - tic))
-    return
+    avg_line_iu = gather_stats(output_path)
+    print('Total time taken: {:.2f}, avg_line_iu={}'.format(time.time() - tic, avg_line_iu))
+    return avg_line_iu
 
 
 if __name__ == "__main__":
@@ -158,7 +159,7 @@ if __name__ == "__main__":
 
     # Environment
     parser.add_argument('--eval_tool', metavar='DIR',
-                        default='../data/LineSegmentationEvaluator.jar',
+                        default='./src/data/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
     parser.add_argument('-j', type=int,
                         default=0,

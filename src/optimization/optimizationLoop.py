@@ -5,18 +5,19 @@ from src.image_segmentation.evaluate_algorithm import evaluate
 
 INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m", "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
 INPUT_FOLDERS_XML = ["/dataset/CB55/test-page", "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
-OUTPUT_FOLDER = ["./../../output/"]
+OUTPUT_FOLDER = ["./output/"]
+NUM_CORES = 0
+EVAL_TOOL = "./data/LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
-    evaluate(assignments)
-    # Make a model using the new hyperparameters
-    return np.random.rand()
+    return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
+                    assignments['penalty'], 1, assignments['seam_every_x_pxl'], assignments['nb_of_lives'])
 
 if __name__ == '__main__':
     # Real Token
-    #conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW")
+    #conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW")
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
@@ -27,7 +28,7 @@ if __name__ == '__main__':
             dict(name="nb_of_lives", type="int", bounds=dict(min=0, max=50)),
         ],
         metrics=[dict(name="line IU")],
-        observation_budget=3,
+        observation_budget=50,
         parallel_bandwidth=1
     )
 
