@@ -3,8 +3,8 @@ import numpy as np
 from sigopt import Connection
 from src.image_segmentation.evaluate_algorithm import evaluate
 
-INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m", "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
-INPUT_FOLDERS_XML = ["/dataset/CB55/test-page", "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
+INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m"]  # , "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
+INPUT_FOLDERS_XML = ["/dataset/CB55/test-page"]  # , "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./LineSegmentationEvaluator.jar"
@@ -24,8 +24,8 @@ if __name__ == '__main__':
         name="Line Segmentation - no merge",
         parameters=[
             dict(name="penalty", type="int", bounds=dict(min=1, max=6000)),
-            dict(name="seam_every_x_pxl",   type="int", bounds=dict(min=1, max=50)),
-            dict(name="nb_of_lives", type="int", bounds=dict(min=0, max=50)),
+            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=10)),
+            dict(name="nb_of_lives", type="int", bounds=dict(min=0, max=15)),
         ],
         metrics=[dict(name="line IU")],
         observation_budget=50,

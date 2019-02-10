@@ -30,7 +30,11 @@ def get_score(logs):
     for line in logs:
         line = str(line)
         if "line IU =" in line:
-            return float(line.split('=')[1][0:8])
+            line_ui = line.split('=')[1][0:8]
+            line_ui = line_ui.strip()
+            if "\\n'" in line_ui:
+                line_ui = line_ui[0:-3]
+            return float(line_ui)
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):

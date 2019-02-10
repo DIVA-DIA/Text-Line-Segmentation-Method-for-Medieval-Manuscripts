@@ -608,7 +608,7 @@ def polygon_to_string(polygons):
     for polygon in polygons:
         line_string = []
         for i, point in enumerate(polygon[0]):
-            if i % 2 == 0:
+            if i % 3 != 0:
                 continue
             line_string.append("{},{}".format(int(point[1]), int(point[0])))
         strings.append(' '.join(line_string))
