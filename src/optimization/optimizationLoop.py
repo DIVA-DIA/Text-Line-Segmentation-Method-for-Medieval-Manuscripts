@@ -7,7 +7,7 @@ INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m", "/dataset/CSG18/test-m", "/dataset/
 INPUT_FOLDERS_XML = ["/dataset/CB55/test-page", "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
-EVAL_TOOL = "./src/data/LineSegmentationEvaluator.jar"
+EVAL_TOOL = "./LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
@@ -17,14 +17,14 @@ if __name__ == '__main__':
     # Real Token
     conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    #conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW")
+    #conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="Line Segmentation",
+        name="Line Segmentation - no merge",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=0, max=10000)),
-            dict(name="seam_every_x_pxl",   type="int", bounds=dict(min=1, max=25)),
+            dict(name="penalty", type="int", bounds=dict(min=1, max=6000)),
+            dict(name="seam_every_x_pxl",   type="int", bounds=dict(min=1, max=50)),
             dict(name="nb_of_lives", type="int", bounds=dict(min=0, max=50)),
         ],
         metrics=[dict(name="line IU")],

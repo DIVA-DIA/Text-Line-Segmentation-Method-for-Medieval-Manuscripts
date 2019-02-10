@@ -3,14 +3,14 @@ from sigopt import Connection
 
 
 def delete_with_pattern(experiment_list, name):
-    for n in experiment_list.data:
+    for n in experiment_list:
         if name in n.name:
             conn.experiments(n.id).delete()
 
 
 def retrieve_id_by_name(experiment_list, name):
     retrieved = []
-    for n in experiment_list.data:
+    for n in experiment_list:
         if name in n.name:
             retrieved.append(n.id)
     return retrieved
@@ -35,7 +35,6 @@ if __name__ == '__main__':
     experiment_list = []
     for experiment in conn.experiments().fetch().iterate_pages():
         experiment_list.append(experiment)
-
 
     delete_with_pattern(experiment_list, "")
 

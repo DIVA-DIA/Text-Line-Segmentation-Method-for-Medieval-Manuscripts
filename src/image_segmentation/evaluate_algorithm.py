@@ -27,13 +27,10 @@ def get_file_list(dir, extension_list ):
 
 
 def get_score(logs):
-    try:
-        assert str(logs[-15]).split(' ')[-4:-2] == ['line', 'IU']
-        score = float(str(logs[-15]).split(' ')[-1][:-3])
-    except:
-        # print('Not line IU')
-        score = 0.0
-    return score
+    for line in logs:
+        line = str(line)
+        if "line IU =" in line:
+            return float(line.split('=')[1][0:8])
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
@@ -47,6 +44,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
     # Run the tool
     try:
         extract_textline(input_img, output_path, **param_list)
+        print("Done: {} with {}".format(input_img, param_string))
     except:
         print("Failed for some reason")
         return [-1, [], param_list]
@@ -54,22 +52,24 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
     # Run the JAR
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
 
+    # Check where is the path - Debugging only
+    # p = Popen(['ls'], stdout=PIPE, stderr=STDOUT)
+    # logs = [line for line in p.stdout]
 
+    print("Starting: JAR {} with {}".format(input_img, param_string))
     p = Popen(['java', '-jar', eval_tool,
                '-igt', input_img,
                '-xgt', input_xml,
                '-xp', os.path.join(output_path, line_extraction_root_folder, 'polygons.xml'),
+               '-out', os.path.join(output_path, line_extraction_root_folder),
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]
-    score = get_score(logs)
-
-    return [score, logs, param_list]
+    print("Done: JAR {} with {}".format(input_img, param_string))
+    return [get_score(logs), logs, param_list]
 
 
 def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
              penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives, **kwargs):
-    # TODO make a new root folder which is the time so that we can make multiple runs for the same output folder
-    # TODO give it as parameter
 
     # Select the number of threads
     if j == 0:
@@ -100,8 +100,11 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
 
+    # Debugging purposes only!
     # input_images = [input_images[0]]
     # input_xml = [input_xml[0]]
+    # input_images = input_images[0:3]
+    # input_xml = input_xml[0:3]
 
     # For each file run
     param_list = dict(penalty=penalty, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
@@ -111,20 +114,13 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
                                                 itertools.repeat(param_list),
                                                 itertools.repeat(eval_tool))))
     pool.close()
+    print("Pool closed)")
+    score = np.average([item[0] for item in results])
 
-    # score = np.average([item[0] for item in results])
-
-    # with open(os.path.join(output_path, 'logs.txt'), 'w') as f:
-    #     log_message = 'penalty reduction: {} # of iterations: {} seam every x pixel: {} lives: {} score: {:.2f}\n'.format(
-    #         penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives, score)
-    #     f.write('Results for dataset {} \n'.format(os.path.dirname(os.path.dirname(image[0]))))
-    #     f.write(log_message)
-    #     print(log_message)
-
-    np.save('results.npy', results)
+    np.save(os.path.join(output_path, 'results.npy'), results)
     avg_line_iu = gather_stats(output_path)
     print('Total time taken: {:.2f}, avg_line_iu={}'.format(time.time() - tic, avg_line_iu))
-    return avg_line_iu
+    return score
 
 
 if __name__ == "__main__":
