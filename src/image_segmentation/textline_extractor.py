@@ -662,14 +662,14 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    extract_textline(input_loc='../data/failed/e-codices_fmb-cb-0055_0098v_max.png',
-                     output_loc='../results/fail',
+    # extract_textline(input_loc='../data/failed/e-codices_fmb-cb-0055_0098v_max.png',
+    #                  output_loc='../results/fail',
+    #                  seam_every_x_pxl=5,
+    #                  nb_of_lives=0,
+    #                  testing=False)
+    extract_textline(input_loc='../data/test1.png',
+                     output_loc='../results/exp',
                      seam_every_x_pxl=5,
                      nb_of_lives=0,
-                     testing=False)
-    # extract_textline(input_loc='../data/test1.png',
-    #                  output_loc='../results/exp',
-    #                  seam_every_x_pxl=5,
-    #                  nb_of_lives=10,
-    #                  testing=True)
+                     testing=True)
     logging.info('Terminated')
