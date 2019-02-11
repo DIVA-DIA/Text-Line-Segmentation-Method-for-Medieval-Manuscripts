@@ -52,7 +52,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
         print("Failed for some reason")
         return [-1, [], param_list]
 
-    if predicted_nb_lines <= 15:
+    if predicted_nb_lines <= 5:
         return [0.0, [], param_list]
 
     # Run the JAR
