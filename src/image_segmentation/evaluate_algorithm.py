@@ -2,6 +2,7 @@ import argparse
 import itertools
 import os
 import time
+import re
 from multiprocessing import Pool, cpu_count
 from subprocess import Popen, PIPE, STDOUT
 
@@ -15,7 +16,7 @@ def check_extension(filename, extension_list):
     return any(filename.endswith(extension) for extension in extension_list)
 
 
-def get_file_list(dir, extension_list ):
+def get_file_list(dir, extension_list):
     list = []
     for root, _, fnames in sorted(os.walk(dir)):
         for fname in fnames:
@@ -31,10 +32,8 @@ def get_score(logs):
         line = str(line)
         if "line IU =" in line:
             line_ui = line.split('=')[1][0:8]
-            line_ui = line_ui.strip()
-            if "\\n'" in line_ui:
-                line_ui = line_ui[0:-3]
-            return float(line_ui)
+            line_ui = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", line_ui)
+            return float(line_ui[0])
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
