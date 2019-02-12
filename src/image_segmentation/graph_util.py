@@ -70,13 +70,18 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     img = img.copy()
     for graph in graphs:
         for edge in graph.edges:
-            p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
-            p1 = (p1[0], p1[1])
-            p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
-            p2 = (p2[0], p2[1])
+            p1, p2 = get_edge_node_coordinates(edge, graph)
             cv2.line(img, p1, p2, color, thickness=thickness)
 
     return img
+
+
+def get_edge_node_coordinates(edge, graph):
+    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+    p1 = (p1[0], p1[1])
+    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+    p2 = (p2[0], p2[1])
+    return p1, p2
 
 
 def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_path):
@@ -86,14 +91,21 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
 
     edges_to_remove = []
 
+    # node attributes (in our case the XY attribute)
+    # node_attributes = nx.get_node_attributes(graph, 'XY')
+    # # edges defined by their node coordinates
+    # edges = np.asarray([get_edge_node_coordinates(edge, graph) for edge in graph.edges])
+    # # make the order descending
+    # edges_sorted = edges_sorted[::-1]
+
     # TODO use quadtree to speed up
     for seam in seams:
         seam = LineString(seam)
 
         for edge in graph.edges:
-            p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+            p1 = np.asarray(node_attributes[edge[0]], dtype=np.uint32)
             p1 = (p1[0], p1[1])
-            p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+            p2 = np.asarray(node_attributes[edge[1]], dtype=np.uint32)
             p2 = (p2[0], p2[1])
             line_edge = LineString([p1, p2])
             if line_edge.intersects(seam):
@@ -120,11 +132,12 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     # get the graphs
     graphs = np.asarray(list(nx.connected_component_subgraphs(graph)))
     # detect the small ones
-    small_graphs = detect_small_graphs(graphs, too_small_pc)
+    small_graphs = detect_small_graphs(graphs, too_small_pc).tolist()
 
+    # check if there are small graphs
     while small_graphs:
         # merge the small graphs
-        graph = merge_small_graphs(graph, occurrences, list(small_graphs), unique_edges, weights)
+        graph = merge_small_graphs(graph, list(small_graphs), unique_edges, weights)
         # get the graphs
         graphs = np.asarray(list(nx.connected_component_subgraphs(graph)))
         # detect the small ones
@@ -142,7 +155,7 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     return np.asarray(list(nx.connected_component_subgraphs(graph)))
 
 
-def merge_small_graphs(graph, occurrences, small_graphs, unique_edges, weights):
+def merge_small_graphs(graph, small_graphs, unique_edges, weights):
     # list of edges to restore in the graph
     edges_to_add = []
     weights = np.asarray(weights)
@@ -154,12 +167,8 @@ def merge_small_graphs(graph, occurrences, small_graphs, unique_edges, weights):
         small_graph = small_graphs.pop()
         edge_idxs = np.unique(np.hstack(np.asarray(
             [np.where(unique_edges == node)[0] for node in list(small_graph.nodes)])))
-        # find the index of the edges with the least hits
-        min_hit_edges_idx = np.where(np.min(occurrences[edge_idxs]) == occurrences)[0]
-        # find the index in the min_hit_edges_idx array
-        min_edge_idx = np.argmin(weights[min_hit_edges_idx])
-        # find index in the occurences/unique_edges/weights arrays
-        min_edge_idx = min_hit_edges_idx[min_edge_idx]
+        # find the index in the in th edge index array
+        min_edge_idx = edge_idxs[np.argmin(weights[edge_idxs])]
         # get edge to restore and add it to the list of edges to add
         edge = unique_edges[min_edge_idx]
         edges_to_add.append((edge[0], edge[1], weights[min_edge_idx]))
@@ -169,7 +178,7 @@ def merge_small_graphs(graph, occurrences, small_graphs, unique_edges, weights):
 
 
 def graph_to_point_lists(graphs):
-    return [[g._node[node]['XY'] for node in g._node] for g in graphs]
+    return [list(nx.get_node_attributes(graph, 'XY').values()) for graph in graphs]
 
 
 def detect_small_graphs(graphs, too_small_pc):
@@ -177,8 +186,7 @@ def detect_small_graphs(graphs, too_small_pc):
     start = time.time()
     # -------------------------------
 
-    copy = [np.asarray(list(g.nodes)) for g in graphs]
-    graph_sizes = np.asarray([g.size for g in copy])
+    graph_sizes = np.asarray([len(g.nodes) for g in graphs])
     # threshold which graphs are considered as small
     too_small = graph_sizes < too_small_pc * np.mean(graph_sizes)
 
