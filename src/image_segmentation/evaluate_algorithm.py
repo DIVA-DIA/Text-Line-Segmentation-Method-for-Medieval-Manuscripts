@@ -95,7 +95,7 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
 
     # Create output path for run
     tic = time.time()
-    current_time =  time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime())
+    current_time =  time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
     output_path = os.path.join(output_path, 'penalty_{}_seams_{}_lives_{}_iter_{}_t_{}'.format(
         penalty,
         seam_every_x_pxl,
@@ -107,8 +107,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
         os.makedirs(os.path.join(output_path))
 
     # Debugging purposes only!
-    # input_images = [input_images[0]]
-    # input_xml = [input_xml[0]]
+    input_images = [input_images[0]]
+    input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
@@ -153,7 +153,6 @@ if __name__ == "__main__":
                         required=True,
                         help='how many pixels between the seams')
     parser.add_argument('--nb-of-lives', type=int,
-                        required=True,
                         help='amount of lives an edge has')
     parser.add_argument('--nb-of-iterations', type=int,
                         default=1,
