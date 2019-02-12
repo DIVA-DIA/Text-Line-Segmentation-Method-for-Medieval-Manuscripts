@@ -11,21 +11,20 @@ EVAL_TOOL = "./LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
-                    assignments['penalty'], 1, assignments['seam_every_x_pxl'], assignments['nb_of_lives'])
+                    assignments['penalty'], 1, assignments['seam_every_x_pxl'], 0)
 
 if __name__ == '__main__':
     # Real Token
-    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    # conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    #conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="Line Segmentation - no merge",
+        name="Line Segmentation - with merge",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=1, max=6000)),
+            dict(name="penalty", type="int", bounds=dict(min=1500, max=6000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=10)),
-            dict(name="nb_of_lives", type="int", bounds=dict(min=0, max=15)),
         ],
         metrics=[dict(name="line IU")],
         observation_budget=50,

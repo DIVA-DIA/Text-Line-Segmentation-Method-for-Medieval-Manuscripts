@@ -91,12 +91,11 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
 
     edges_to_remove = []
 
+    # edges defined by their node coordinates
+    edges = np.asarray([get_edge_node_coordinates(edge, graph) for edge in graph.edges])
+
     # node attributes (in our case the XY attribute)
-    # node_attributes = nx.get_node_attributes(graph, 'XY')
-    # # edges defined by their node coordinates
-    # edges = np.asarray([get_edge_node_coordinates(edge, graph) for edge in graph.edges])
-    # # make the order descending
-    # edges_sorted = edges_sorted[::-1]
+    node_attributes = nx.get_node_attributes(graph, 'XY')
 
     # TODO use quadtree to speed up
     for seam in seams:
