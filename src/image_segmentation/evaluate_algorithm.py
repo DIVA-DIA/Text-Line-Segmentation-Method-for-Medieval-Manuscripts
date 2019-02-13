@@ -67,7 +67,6 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
                '-igt', input_img,
                '-xgt', input_xml,
                '-xp', os.path.join(output_path, line_extraction_root_folder, 'polygons.xml'),
-               '-out', os.path.join(output_path, line_extraction_root_folder),
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]
     print("Done: JAR {} with {}".format(input_img, param_string))
