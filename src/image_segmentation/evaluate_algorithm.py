@@ -160,7 +160,7 @@ if __name__ == "__main__":
 
     # Environment
     parser.add_argument('--eval-tool', metavar='DIR',
-                        default='./evaluation/LineSegmentationEvaluator.jar',
+                        default='./src/evaluation/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
     parser.add_argument('-j', type=int,
                         default=0,
