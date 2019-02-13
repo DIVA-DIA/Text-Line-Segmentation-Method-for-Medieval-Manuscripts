@@ -27,7 +27,7 @@ if __name__ == '__main__':
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=10)),
         ],
         metrics=[dict(name="line IU")],
-        observation_budget=50,
+        observation_budget=5,
         parallel_bandwidth=1
     )
 
