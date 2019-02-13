@@ -121,10 +121,10 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     graph.remove_edges_from(unique_edges)
 
     # create histogram and save it
-    plt.hist(occurrences, bins='auto')
-    # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
-    plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
-    plt.savefig(os.path.join(root_output_path, 'histo', 'histogram_with_reduction_and_without.png'))
+    # plt.hist(occurrences, bins='auto')
+    # # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
+    # plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
+    # plt.savefig(os.path.join(root_output_path, 'histo', 'histogram_with_reduction_and_without.png'))
 
     if nx.is_connected(graph):
         return list([graph])
