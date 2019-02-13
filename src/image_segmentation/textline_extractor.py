@@ -38,6 +38,9 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
     # creating the folders and getting the new root folder
     root_output_path = create_folder_structure(input_loc, output_loc, (penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
 
+    # inits the logger with the logging path
+    init_logger(root_output_path)
+
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
@@ -57,6 +60,20 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
 
     # validate
     return nb_polygons
+
+
+def init_logger(root_output_path):
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    # create a file handler
+    handler = logging.FileHandler(os.path.join(root_output_path, 'logs', 'textline_extractor.log'))
+    handler.setLevel(logging.INFO)
+    # create a logging format
+    formatter = logging.Formatter('%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(handler)
+
 
 #######################################################################################################################
 
@@ -674,5 +691,6 @@ if __name__ == "__main__":
                      output_loc='../results/exp',
                      seam_every_x_pxl=5,
                      nb_of_lives=0,
+                     penalty=6000,
                      testing=True)
     logging.info('Terminated')

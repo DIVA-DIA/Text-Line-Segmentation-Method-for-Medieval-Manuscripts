@@ -171,6 +171,7 @@ def merge_small_graphs(graph, small_graphs, unique_edges, weights):
         min_edge_idx = edge_idxs[np.argmin(weights[edge_idxs])]
         # get edge to restore and add it to the list of edges to add
         edge = unique_edges[min_edge_idx]
+        unique_edges = np.delete(unique_edges, min_edge_idx, axis=0)
         edges_to_add.append((edge[0], edge[1], weights[min_edge_idx]))
     # add again the edges
     graph.add_weighted_edges_from(edges_to_add)
