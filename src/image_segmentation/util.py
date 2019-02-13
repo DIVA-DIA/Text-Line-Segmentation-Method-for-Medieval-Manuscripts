@@ -25,5 +25,7 @@ def create_folder_structure(input_file, output_path, params):
         os.mkdir(os.path.join(basefolder_path, 'energy_map'))
         # create histo folder
         os.mkdir(os.path.join(basefolder_path, 'histo'))
+        # create histo folder
+        os.mkdir(os.path.join(basefolder_path, 'logs'))
 
     return basefolder_path

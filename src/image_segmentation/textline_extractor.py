@@ -38,6 +38,9 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
     # creating the folders and getting the new root folder
     root_output_path = create_folder_structure(input_loc, output_loc, (penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
 
+    # inits the logger with the logging path
+    init_logger(root_output_path)
+
     #############################################
     # Load the image
     img = cv2.imread(input_loc)
@@ -57,6 +60,20 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
 
     # validate
     return nb_polygons
+
+
+def init_logger(root_output_path):
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    # create a file handler
+    handler = logging.FileHandler(os.path.join(root_output_path, 'logs', 'textline_extractor.log'))
+    handler.setLevel(logging.INFO)
+    # create a logging format
+    formatter = logging.Formatter('%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s')
+    handler.setFormatter(formatter)
+    # add the handlers to the logger
+    logger.addHandler(handler)
+
 
 #######################################################################################################################
 
@@ -106,9 +123,14 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
         # list with all seams
         seams = []
 
+        # left most column of the energy map
+        left_column_energy_map = np.copy(ori_energy_map[:, 0])
+        # right most column of the energy map
+        right_column_energy_map = np.copy(ori_energy_map[:, -1])
+
         # show_img(ori_enegery_map)
         for seam_at in range(0, img.shape[0], seam_every_x_pxl):
-            energy_map = prepare_energy(ori_energy_map, seam_at)
+            energy_map = prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
             seam = horizontal_seam(energy_map, penalty=True, penalty_div=penalty)
             seams.append(seam)
@@ -616,7 +638,7 @@ def polygon_to_string(polygons):
     return strings
 
 
-def prepare_energy(ori_map, y):
+def prepare_energy(ori_map, left_column, right_column, y):
     """
     Sets the left and right border of the matrix to int.MAX except at y.
 
@@ -624,16 +646,14 @@ def prepare_energy(ori_map, y):
     :param y:
     :return:
     """
-    energy_map = np.copy(ori_map)
 
-    for row in range(energy_map.shape[0]):
-        if row == y:
-            continue
+    y_value_left, y_value_right = left_column[y], right_column[y]
+    ori_map[:, 0] = sys.maxsize / 2
+    ori_map[:, -1] = sys.maxsize / 2
 
-        energy_map[row][0] = sys.maxsize / 2
-        energy_map[row][energy_map.shape[1] - 1] = sys.maxsize / 2
+    ori_map[y][0], ori_map[y][-1] = y_value_left, y_value_right
 
-    return energy_map
+    return ori_map
 
 
 def show_img(img, save=False, path='experiment.png', show=True):
@@ -662,8 +682,8 @@ if __name__ == "__main__":
     logging.info('Printing activity to the console')
 
     print("{}".format(os.getcwd()))
-    # extract_textline(input_loc='../data/failed/e-codices_fmb-cb-0055_0098v_max.png',
-    #                  output_loc='../results/fail',
+    # extract_textline(input_loc='../data/A/19/e-codices_fmb-cb-0055_0019r_max_gt.png',
+    #                  output_loc='../results/exp',
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=0,
     #                  testing=False)
@@ -671,5 +691,6 @@ if __name__ == "__main__":
                      output_loc='../results/exp',
                      seam_every_x_pxl=5,
                      nb_of_lives=0,
+                     penalty=6000,
                      testing=True)
     logging.info('Terminated')

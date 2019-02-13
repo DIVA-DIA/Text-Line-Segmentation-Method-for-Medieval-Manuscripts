@@ -107,8 +107,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
         os.makedirs(os.path.join(output_path))
 
     # Debugging purposes only!
-    input_images = [input_images[0]]
-    input_xml = [input_xml[0]]
+    # input_images = [input_images[0]]
+    # input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
@@ -159,8 +159,8 @@ if __name__ == "__main__":
                         help='number of iterations')
 
     # Environment
-    parser.add_argument('--eval_tool', metavar='DIR',
-                        default='./src/data/LineSegmentationEvaluator.jar',
+    parser.add_argument('--eval-tool', metavar='DIR',
+                        default='./evaluation/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
     parser.add_argument('-j', type=int,
                         default=0,
