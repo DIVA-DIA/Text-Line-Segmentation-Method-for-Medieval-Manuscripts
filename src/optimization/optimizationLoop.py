@@ -8,7 +8,7 @@ INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m"]  # , "/dataset/CSG18/test-m", "/dat
 INPUT_FOLDERS_XML = ["/dataset/CB55/test-page"]  # , "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
-EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
+EVAL_TOOL = "./evaluation/LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,

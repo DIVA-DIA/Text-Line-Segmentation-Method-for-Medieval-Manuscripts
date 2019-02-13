@@ -93,6 +93,7 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
 
     # edges defined by their node coordinates
     edges = np.asarray([get_edge_node_coordinates(edge, graph) for edge in graph.edges])
+    max_y_of_edges = np.max(edges[:, :, 1], axis=1)
 
     # node attributes (in our case the XY attribute)
     node_attributes = nx.get_node_attributes(graph, 'XY')
