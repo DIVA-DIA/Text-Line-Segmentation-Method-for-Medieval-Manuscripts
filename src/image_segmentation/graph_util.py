@@ -152,7 +152,7 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return np.asarray(list(nx.connected_component_subgraphs(graph)))
+    return graphs
 
 
 def merge_small_graphs(graph, small_graphs, unique_edges, weights):

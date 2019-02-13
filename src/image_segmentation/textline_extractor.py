@@ -1,6 +1,3 @@
-"""
-"""
-
 # Utils
 import logging
 import os
@@ -666,31 +663,31 @@ def show_img(img, save=False, path='experiment.png', show=True):
 
 
 #######################################################################################################################
-
-if __name__ == "__main__":
-    # Set up logging to console
-    formatter = logging.Formatter(
-        fmt='%(asctime)s %(funcName)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
-    stderr_handler = logging.StreamHandler()
-    stderr_handler.formatter = formatter
-    logging.getLogger().addHandler(stderr_handler)
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.basicConfig(
-        format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
-        level=logging.INFO)
-    logging.info('Printing activity to the console')
-
-    print("{}".format(os.getcwd()))
-    # extract_textline(input_loc='../data/A/19/e-codices_fmb-cb-0055_0019r_max_gt.png',
-    #                  output_loc='../results/exp',
-    #                  seam_every_x_pxl=5,
-    #                  nb_of_lives=0,
-    #                  testing=False)
-    extract_textline(input_loc='../data/test1.png',
-                     output_loc='../results/exp',
-                     seam_every_x_pxl=5,
-                     nb_of_lives=0,
-                     penalty=6000,
-                     testing=True)
-    logging.info('Terminated')
+#
+# if __name__ == "__main__":
+#     # Set up logging to console
+#     formatter = logging.Formatter(
+#         fmt='%(asctime)s %(funcName)s %(levelname)-8s %(message)s',
+#         datefmt='%Y-%m-%d %H:%M:%S')
+#     stderr_handler = logging.StreamHandler()
+#     stderr_handler.formatter = formatter
+#     logging.getLogger().addHandler(stderr_handler)
+#     logging.getLogger().setLevel(logging.DEBUG)
+#     logging.basicConfig(
+#         format='%(asctime)s - %(filename)s:%(funcName)s %(levelname)s: %(message)s',
+#         level=logging.INFO)
+#     logging.info('Printing activity to the console')
+#
+#     print("{}".format(os.getcwd()))
+#     # extract_textline(input_loc='../data/A/19/e-codices_fmb-cb-0055_0019r_max_gt.png',
+#     #                  output_loc='../results/exp',
+#     #                  seam_every_x_pxl=5,
+#     #                  nb_of_lives=0,
+#     #                  testing=False)
+#     extract_textline(input_loc='../data/test1.png',
+#                      output_loc='../../output',
+#                      seam_every_x_pxl=5,
+#                      nb_of_lives=0,
+#                      penalty=6000,
+#                      testing=True)
+#     logging.info('Terminated')
