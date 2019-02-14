@@ -170,7 +170,7 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
     # show_img(print_graph_on_img(img, graph), save=True, show=False, path=os.path.join(root_output_path, 'graph', 'uncut_graph.png'))
 
     # use the seams to cut them into graphs
-    graphs = cut_graph_with_seams(graph, last_seams, too_small_pc, root_output_path)
+    graphs = cut_graph_with_seams(graph, last_seams, too_small_pc)
 
     # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
     # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
