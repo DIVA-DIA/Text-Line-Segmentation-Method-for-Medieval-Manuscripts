@@ -67,7 +67,6 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
                '-igt', input_img,
                '-xgt', input_xml,
                '-xp', os.path.join(output_path, line_extraction_root_folder, 'polygons.xml'),
-               '-out', os.path.join(output_path, line_extraction_root_folder),
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]
     print("Done: JAR {} with {}".format(input_img, param_string))
@@ -107,8 +106,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
         os.makedirs(os.path.join(output_path))
 
     # Debugging purposes only!
-    # input_images = [input_images[0]]
-    # input_xml = [input_xml[0]]
+    input_images = [input_images[0]]
+    input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
@@ -160,7 +159,7 @@ if __name__ == "__main__":
 
     # Environment
     parser.add_argument('--eval-tool', metavar='DIR',
-                        default='./evaluation/LineSegmentationEvaluator.jar',
+                        default='./src/evaluation/LineSegmentationEvaluator.jar',
                         help='path to folder containing DIVA_Line_Segmentation_Evaluator')
     parser.add_argument('-j', type=int,
                         default=0,

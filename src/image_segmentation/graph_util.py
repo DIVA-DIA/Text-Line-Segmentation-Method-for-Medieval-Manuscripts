@@ -1,3 +1,4 @@
+import bisect
 import logging
 import os
 import time
@@ -76,55 +77,21 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     return img
 
 
-def get_edge_node_coordinates(edge, graph):
-    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
-    p1 = (p1[0], p1[1])
-    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
-    p2 = (p2[0], p2[1])
-    return p1, p2
-
-
-def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_path):
+def cut_graph_with_seams(graph, seams, too_small_pc, output_path):
     # -------------------------------
     start = time.time()
     # -------------------------------
 
-    edges_to_remove = []
+    tic = time.time()
+    unique_edges, weights, occurrences = find_intersected_edges(graph, seams)
+    print(time.time()-tic)
 
-    # edges defined by their node coordinates
-    edges = np.asarray([get_edge_node_coordinates(edge, graph) for edge in graph.edges])
-    max_y_of_edges = np.max(edges[:, :, 1], axis=1)
-
-    # node attributes (in our case the XY attribute)
-    node_attributes = nx.get_node_attributes(graph, 'XY')
-
-    # TODO use quadtree to speed up
-    for seam in seams:
-        seam = LineString(seam)
-
-        for edge in graph.edges:
-            p1 = np.asarray(node_attributes[edge[0]], dtype=np.uint32)
-            p1 = (p1[0], p1[1])
-            p2 = np.asarray(node_attributes[edge[1]], dtype=np.uint32)
-            p2 = (p2[0], p2[1])
-            line_edge = LineString([p1, p2])
-            if line_edge.intersects(seam):
-                edges_to_remove.append(edge)
-
-    # getting unique edges and counting them (how many times they where hit by a seam)
-    unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
-    weights = [graph.edges[edge]['weight'] for edge in unique_edges]
-    # delete the edges which get cut less then n times
-    # unique_edges = unique_edges[occurrences > nb_of_lives]
+    # create histogram and save it
+    # plt.hist(occurrences, bins='auto')
+    # plt.savefig(os.path.join(output_path, 'histo/histogram_of_intersection_occurrences.png'))
 
     # remove the edges from the graph
     graph.remove_edges_from(unique_edges)
-
-    # create histogram and save it
-    plt.hist(occurrences, bins='auto')
-    # plt.savefig(os.path.join(output_loc, 'histo/histo_without_reduction.png'))
-    plt.hist(occurrences[occurrences > nb_of_lives], bins='auto')
-    plt.savefig(os.path.join(root_output_path, 'histo', 'histogram_with_reduction_and_without.png'))
 
     if nx.is_connected(graph):
         return list([graph])
@@ -153,6 +120,94 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     # -------------------------------
 
     return np.asarray(list(nx.connected_component_subgraphs(graph)))
+
+
+def get_edge_node_coordinates(edge, graph):
+    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+    p1 = (p1[0], p1[1])
+    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+    p2 = (p2[0], p2[1])
+    return p1, p2
+
+
+def get_neighbouring_seams_index(seams_max_y, seams_min_y, edge_max_y, edge_min_y):
+    """
+    Get the indexes of the seams which could possibly intersect with the point
+    """
+    # reads as "the highest (in terms of value, don't forget top left is 0,0!) value of
+    # a seam has to be higher than the lowest value of the edge, and, the lowest point
+    # of the seams has to be lower than the highest of the edge. In this way there CAN
+    # be an intersection, but outside this range its mathematically impossible that there is.
+
+    # IMPORTANT: note that seams_max_y and seams_min_y MUST be sorted. Here, we don't
+    # sort them because of their sorted nature. As a matter of fact, it is impossible
+    # for a seam to cross another one; if they meet the merge but one will never go on "the
+    # other side" because of obvious reasons but most importantly the penalty. So the lists
+    # are for us already sorted.
+    return [bisect.bisect_left(seams_max_y, edge_min_y), bisect.bisect_left(seams_min_y, edge_max_y)]
+
+
+def chunks(l, n):
+    """Yield successive len(l)/n-sized chunks from l."""
+    # ensure we dont ask for too many chunks
+    n = np.min([n, len(l)])
+    # get the size of each chunk
+    size  = int(np.ceil(len(l)/n))
+    for i in range(0, len(l), size):
+        yield l[i:i + size]
+
+
+def find_intersected_edges(graph, seams):
+    # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
+    seams_y = [np.array(s)[:, 1] for s in seams]
+    seams_max_y = np.max(seams_y, axis=1)
+    seams_min_y = np.min(seams_y, axis=1)
+
+    # node attributes (in our case the XY attribute)
+    node_attributes = nx.get_node_attributes(graph, 'XY')
+
+    # compute the lines out of seams
+    seams = [LineString(seam) for seam in seams]
+
+    # make the data iterable/splittable
+    edges = [e for e in graph.edges]
+    edges.sort(key=lambda tup: tup[0])
+
+    edges_to_remove = []
+    # split the data into chunks
+    for chunk in chunks(edges, 250):
+        # select the max/min of the edges in this chunk
+        tmp = np.array(chunk)
+        p1 = np.array([node_attributes[edge[0]] for edge in tmp])
+        p2 = np.array([node_attributes[edge[1]] for edge in tmp])
+        edge_max_y = np.max((p1[:, 1], p2[:, 1]))
+        edge_min_y = np.min((p1[:, 1], p2[:, 1]))
+        # get the possible seams to intersect
+        index = get_neighbouring_seams_index(seams_max_y, seams_min_y, edge_max_y, edge_min_y)
+        # for each edge in the chunk check if it actually does intersect
+        for start, end, edge in zip(p1, p2, chunk):
+            line_edge = LineString([start, end])
+            for seam in seams[index[0]:index[1]]:
+                if line_edge.intersects(seam):
+                    edges_to_remove.append(edge)
+                    break
+
+    # # LEGACY CODE - not optimized but readable
+    # edges_to_remove = []
+    # for edge in graph.edges:
+    #     p1 = np.asarray(node_attributes[edge[0]], dtype=np.uint32)
+    #     p2 = np.asarray(node_attributes[edge[1]], dtype=np.uint32)
+    #     line_edge =  LineString([p1, p2])
+    #     for seam in seams:
+    #         if line_edge.intersects(seam):
+    #             edges_to_remove.append(edge)
+    #             break
+
+    # getting unique edges and counting them (how many times they where hit by a seam)
+    unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
+    weights = [graph.edges[edge]['weight'] for edge in unique_edges]
+
+    return unique_edges, weights, occurrences
 
 
 def merge_small_graphs(graph, small_graphs, unique_edges, weights):

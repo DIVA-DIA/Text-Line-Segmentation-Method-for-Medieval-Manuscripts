@@ -14,6 +14,10 @@ def create_folder_structure(input_file, output_path, params):
     """
     fileName = os.path.basename(input_file).split('.')[0]
 
+    # If the output_path does not exist (the output folder typically) then create it
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+
     # basefolder
     basefolder_path = os.path.join(output_path, fileName + '_penalty_{}_iterations_{}_seams_{}_lives_{}'.format(*params))
     # create basefolder
