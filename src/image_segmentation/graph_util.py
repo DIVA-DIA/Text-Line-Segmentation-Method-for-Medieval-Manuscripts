@@ -162,8 +162,6 @@ def chunks(l, n):
 
 
 def find_intersected_edges(graph, seams):
-    graph_img = GraphLogger.draw_graph(img=[], graph=graph, save=True, name='triangulated_graph.png')
-
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
     seams_y = [np.array(s)[:, 1] for s in seams]
     seams_max_y = np.max(seams_y, axis=1)
@@ -213,8 +211,6 @@ def find_intersected_edges(graph, seams):
     unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
     weights = [graph.edges[edge]['weight'] for edge in unique_edges]
 
-    GraphLogger.draw_edges(graph_img, unique_edges, graph, (0, 0, 255), 5, True, "graph_with_unique_edges.png")
-
     return unique_edges, weights, occurrences
 
 
@@ -235,6 +231,7 @@ def merge_small_graphs(graph, small_graphs, unique_edges, weights):
         # get edge to restore and add it to the list of edges to add
         edge = unique_edges[min_edge_idx]
         unique_edges = np.delete(unique_edges, min_edge_idx, axis=0)
+        weights = np.delete(weights, min_edge_idx, axis=0)
         edges_to_add.append((edge[0], edge[1], weights[min_edge_idx]))
     # add again the edges
     graph.add_weighted_edges_from(edges_to_add)
@@ -277,6 +274,8 @@ class GraphLogger:
             img = cls.draw_graph(img, graph, color, thickness, False)
 
         save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
+
+        return img
 
     @classmethod
     def draw_graph(cls, img, graph, color=(0, 255, 0), thickness=3, save=False, name='graph.png'):
