@@ -89,14 +89,14 @@ def get_edge_node_coordinates(edge, graph):
     return p1, p2
 
 
-def cut_graph_with_seams(graph, seams, too_small_pc, root_output_path):
+def cut_graph_with_seams(graph, seams, too_small_pc):
     # -------------------------------
     start = time.time()
     # -------------------------------
 
     tic = time.time()
     unique_edges, weights, occurrences = find_intersected_edges(graph, seams)
-    logging.INFO("find_intersected_edges: ", time.time()-tic)
+    logging.info("find_intersected_edges: {}".format(time.time()-tic))
 
     # create histogram and save it
     # plt.hist(occurrences, bins='auto')

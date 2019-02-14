@@ -51,7 +51,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
 
     # blow up image with the help of seams
     img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, show_seams,
-                                                                testing, seam_every_x_pxl, nb_of_iterations)
+                                                               testing, seam_every_x_pxl, nb_of_iterations)
 
     nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc)
 
