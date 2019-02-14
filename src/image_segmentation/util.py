@@ -1,3 +1,4 @@
+import cv2
 import os
 
 
@@ -33,3 +34,13 @@ def create_folder_structure(input_file, output_path, params):
         os.mkdir(os.path.join(basefolder_path, 'logs'))
 
     return basefolder_path
+
+
+def save_img(img, path='experiment.png', show=True):
+    if show:
+        cv2.imshow('img', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    # save the image at the given path
+    cv2.imwrite(path, img)
