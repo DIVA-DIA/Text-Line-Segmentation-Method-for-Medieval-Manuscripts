@@ -77,7 +77,15 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
     return img
 
 
-def cut_graph_with_seams(graph, seams, too_small_pc, output_path):
+def get_edge_node_coordinates(edge, graph):
+    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+    p1 = (p1[0], p1[1])
+    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+    p2 = (p2[0], p2[1])
+    return p1, p2
+
+
+def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_path):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -119,7 +127,7 @@ def cut_graph_with_seams(graph, seams, too_small_pc, output_path):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return np.asarray(list(nx.connected_component_subgraphs(graph)))
+    return graphs
 
 
 def get_edge_node_coordinates(edge, graph):

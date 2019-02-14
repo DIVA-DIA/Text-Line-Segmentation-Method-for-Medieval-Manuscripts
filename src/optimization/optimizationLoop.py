@@ -8,7 +8,7 @@ INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m"]  # , "/dataset/CSG18/test-m", "/dat
 INPUT_FOLDERS_XML = ["/dataset/CB55/test-page"]  # , "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
-EVAL_TOOL = "./evaluation/LineSegmentationEvaluator.jar"
+EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
@@ -16,9 +16,9 @@ def evaluate_metric(assignments):
 
 if __name__ == '__main__':
     # Real Token
-    # conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
