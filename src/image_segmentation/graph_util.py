@@ -88,14 +88,12 @@ def get_edge_node_coordinates(edge, graph):
     return p1, p2
 
 
-def cut_graph_with_seams(graph, seams, too_small_pc, root_output_path):
+def cut_graph_with_seams(graph, seams, too_small_pc):
     # -------------------------------
     start = time.time()
     # -------------------------------
 
-    tic = time.time()
-    unique_edges, weights, occurrences = find_intersected_edges(graph, seams)
-    print(time.time()-tic)
+    unique_edges, weights = find_intersected_edges(graph, seams)
 
     # remove the edges from the graph
     graph.remove_edges_from(unique_edges)
@@ -202,11 +200,8 @@ def find_intersected_edges(graph, seams):
     #             edges_to_remove.append(edge)
     #             break
 
-    # getting unique edges and counting them (how many times they where hit by a seam)
-    unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
-    weights = [graph.edges[edge]['weight'] for edge in unique_edges]
-
-    return unique_edges, weights, occurrences
+    weights = [graph.edges[edge]['weight'] for edge in edges_to_remove]
+    return edges_to_remove, weights
 
 
 def merge_small_graphs(graph, small_graphs, unique_edges, weights):
