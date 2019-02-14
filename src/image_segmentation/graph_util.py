@@ -5,11 +5,12 @@ import time
 
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
 import cv2
 
 from scipy.spatial import Delaunay
 from shapely.geometry import LineString
+
+from src.image_segmentation.util import save_img
 
 
 def createTINgraph(points):
@@ -161,6 +162,8 @@ def chunks(l, n):
 
 
 def find_intersected_edges(graph, seams):
+    graph_img = GraphLogger.draw_graph(img=[], graph=graph, save=True, name='triangulated_graph.png')
+
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
     seams_y = [np.array(s)[:, 1] for s in seams]
     seams_max_y = np.max(seams_y, axis=1)
@@ -210,6 +213,8 @@ def find_intersected_edges(graph, seams):
     unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
     weights = [graph.edges[edge]['weight'] for edge in unique_edges]
 
+    GraphLogger.draw_edges(graph_img, unique_edges, graph, (0, 0, 255), 5, True, "graph_with_unique_edges.png")
+
     return unique_edges, weights, occurrences
 
 
@@ -255,3 +260,43 @@ def detect_small_graphs(graphs, too_small_pc):
     # -------------------------------
     # return graphs[too_small]
     return graphs[too_small]
+
+
+class GraphLogger:
+    IMG_SHAPE = ()
+    ROOT_OUTPUT_PATH = ''
+
+    @classmethod
+    def draw_graphs(cls, img, graphs, color=(0, 255, 0), thickness=3, name='graph.png'):
+        if not list(img):
+            img = np.zeros(cls.IMG_SHAPE)
+        else:
+            img = img.copy()
+
+        for graph in graphs:
+            img = cls.draw_graph(img, graph, color, thickness, False)
+
+        save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
+
+    @classmethod
+    def draw_graph(cls, img, graph, color=(0, 255, 0), thickness=3, save=False, name='graph.png'):
+        if not list(img):
+            img = np.zeros(cls.IMG_SHAPE)
+        else:
+            img = img.copy()
+
+        cls.draw_edges(img, graph.edges, graph, color, thickness, save=False)
+
+        if save:
+            save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
+
+        return img
+
+    @classmethod
+    def draw_edges(cls, img, edges, graph, color, thickness, save=False, name='graph.png'):
+        for edge in edges:
+            p1, p2 = get_edge_node_coordinates(edge, graph)
+            cv2.line(img, p1, p2, color, thickness=thickness)
+
+        if save:
+            save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
