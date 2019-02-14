@@ -78,14 +78,17 @@ def print_graph_on_img(img, graphs, color=(0, 255, 0), thickness=3):
 
 
 def get_edge_node_coordinates(edge, graph):
-    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
+    # node attributes (in our case the XY attribute)
+    node_attributes = nx.get_node_attributes(graph, 'XY')
+
+    p1 = np.asarray(node_attributes[edge[0]], dtype=np.uint32)
     p1 = (p1[0], p1[1])
-    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
+    p2 = np.asarray(node_attributes[edge[1]], dtype=np.uint32)
     p2 = (p2[0], p2[1])
     return p1, p2
 
 
-def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_path):
+def cut_graph_with_seams(graph, seams, too_small_pc, root_output_path):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -128,14 +131,6 @@ def cut_graph_with_seams(graph, seams, nb_of_lives, too_small_pc, root_output_pa
     # -------------------------------
 
     return graphs
-
-
-def get_edge_node_coordinates(edge, graph):
-    p1 = np.asarray(graph.nodes[edge[0]]['XY'], dtype=np.uint32)
-    p1 = (p1[0], p1[1])
-    p2 = np.asarray(graph.nodes[edge[1]]['XY'], dtype=np.uint32)
-    p2 = (p2[0], p2[1])
-    return p1, p2
 
 
 def get_neighbouring_seams_index(seams_max_y, seams_min_y, edge_max_y, edge_min_y):
