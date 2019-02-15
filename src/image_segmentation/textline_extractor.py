@@ -182,14 +182,14 @@ def majority_voting(centroids, seams):
     while len(small_bins) > 0:
         # split values into bins index
         bin_index = np.digitize(values, np.unique(values))
-        unique_bins , clusters_size = np.unique(bin_index, return_counts=True)
+        unique_bins , bin_size = np.unique(bin_index, return_counts=True)
 
         # look for outliers and merge them into bigger clusters
         if small_bins[0] == 42:
-            avg = np.mean(clusters_size)*0.25
+            avg = np.mean(bin_size)*0.25
 
         # cluster which are too small
-        small_bins = unique_bins[np.where(clusters_size < avg)]
+        small_bins = unique_bins[np.where(bin_size < avg)]
 
         for bin in small_bins:
             # find the indexes of the samples which are undernumbered
@@ -255,7 +255,6 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
         graph_nodes = []
         polygon_img = np.zeros(img.shape)
         for c in line:
-            #c = list(c)#only for majority voting
             cc = find_cc_from_centroid(c, connected_components[1])
             points = cc.coords[::3, 0:2]
             points = np.asarray([[point[1], point[0]]for point in points])
