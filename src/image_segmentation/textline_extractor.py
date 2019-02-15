@@ -616,9 +616,9 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     return energy_map, cc
 
 
-def create_projection_profile(map):
+def create_projection_profile(energy_map):
     # creating the horizontal projection profile
-    projection_profile = np.sum(map, axis=1)
+    projection_profile = np.sum(energy_map, axis=1)
     return projection_profile
 
 
@@ -745,7 +745,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/CB55/e-codices_fmb-cb-0055_0105r_max.png',
+    extract_textline(input_loc='./../data/e-codices_fmb-cb-0055_0105r_max.png',
                      output_loc='./../../output',
                      seam_every_x_pxl=10,
                      nb_of_lives=0,
