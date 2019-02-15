@@ -104,12 +104,12 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
     last_seams = []
     cc = []
 
-    for i in range(nb_of_iterations):
-        if i == 0:
-            # Prepare image (filter only text, ...)
-            img = prepare_image(img, testing=testing, cropping=False)
+    # Prepare image (filter only text, ...)
+    img = prepare_image(img, testing=testing, cropping=False)
 
-        # create the engergy map
+    for i in range(nb_of_iterations):
+
+        # create the energy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
         # bidirectional energy map
@@ -146,7 +146,7 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
         else:
             last_seams = seams
 
-        save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'), show=False)
+        save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams_({}).png'.format(i)), show=False)
 
     # -------------------------------
     stop = time.time()
@@ -154,6 +154,67 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
     # -------------------------------
 
     return img, cc, last_seams
+
+
+def majority_voting(centroids, seams):
+    """
+    Splits the centroids into bins according to how many seams cross them
+    """
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+
+    # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
+    seams = np.array([np.array(s)[:, 1] for s in seams])
+
+    # for each centroid, compute how many seams are above it
+    values = np.zeros([len(centroids)])
+    for i, centroid in enumerate(centroids):
+        cx = int(centroid[1])
+        cy = int(centroid[0])
+        for seam in seams:
+            # if the seam is below the centroid at the centroid X position
+            if seam[cx] > cy:
+                values[i] = values[i] + 1
+
+    small_bins = [42]
+    while len(small_bins) > 0:
+        # split values into bins index
+        bin_index = np.digitize(values, np.unique(values))
+        unique_bins , clusters_size = np.unique(bin_index, return_counts=True)
+
+        # look for outliers and merge them into bigger clusters
+        if small_bins[0] == 42:
+            avg = np.mean(clusters_size)*0.25
+
+        # cluster which are too small
+        small_bins = unique_bins[np.where(clusters_size < avg)]
+
+        for bin in small_bins:
+            # find the indexes of the samples which are undernumbered
+            for loc in np.where(bin_index==bin)[0]:
+                # adapt index for prevent out of bounds
+                loc_p = loc + 1 if loc + 1 < len(values) else loc
+                loc_m = loc - 1 if loc > 0 else loc
+
+                # compute distances to neighbors
+                upper = abs(values[loc_p] - values[loc])
+                lower = abs(values[loc_m] - values[loc])
+
+                values[loc] = values[loc_m] if (upper == 0 or upper > lower) and lower != 0 else values[loc_p]
+
+
+    # split the centroids into bins according to the clusters
+    lines = []
+    for bin in unique_bins:
+        lines.append(list(centroids[np.where(bin_index == bin)]))
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
+    return lines
 
 
 def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc):
@@ -167,42 +228,39 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
 
     centroids = np.asarray([cc.centroid[0:2] for cc in connected_components[1]])
     centroids = centroids[np.argsort(centroids[:, 0]), :]
+
     # Lars
-    # triangulate the CC
-    # tranform into a graph
-    graph = createTINgraph(centroids)
-
-    # use the seams to cut them into graphs
-    graphs = cut_graph_with_seams(graph, last_seams, too_small_pc)
-
-    # iterate over all the sections of the seam as line and get from the quadtree the edges it could hit
-    # if it hits a edge we delete this edge from the graph TODO give the edges 2 lives instead of just one
-    GraphLogger.draw_graphs(img, graphs, name='cut_graph.png')
-    graphs_as_point_lists = graph_to_point_lists(graphs)
+    # triangulate the CC; transform into a graph
+    # graph = createTINgraph(centroids)
+    #
+    # # use the seams to cut them into graphs
+    # graphs = cut_graph_with_seams(graph, last_seams, too_small_pc)
+    #
+    # GraphLogger.draw_graphs(img, graphs, name='cut_graph.png')
+    #
+    # # a bit contains all centroids which belong to that line
+    # lines = graph_to_point_lists(graphs)
+    lines = majority_voting(centroids, last_seams)
 
     # Create a working copy of the image to draw the CC convex hull & so
     poly_img_text = np.asarray(img.copy(), dtype=np.float64)
 
     #############################################
     # Extract the contour of each CC
-    # if the centroid is not on the area of the cc, replace centroid with random point on the area
     nb_line = 0
     polygon_coords = []
-    for line in graphs_as_point_lists:
+    for line in lines:
         cc_coords = []
         graph_nodes = []
         polygon_img = np.zeros(img.shape)
         for c in line:
+            #c = list(c)#only for majority voting
             cc = find_cc_from_centroid(c, connected_components[1])
             points = cc.coords[::3, 0:2]
             points = np.asarray([[point[1], point[0]]for point in points])
             cc_coords.append(points)
+            # add the first countour point to the list s.t. the line will be connected
             graph_nodes.append([points[0][1], points[0][0]])
-
-            # hull = ConvexHull(points)
-            # cc_polygons[l].append(points[hull.vertices][:, [1, 0]])
-            # cc_hull_points.extend(points)
-        # cc_polygons.append(np.asarray(cc_hull_points)[ConvexHull(cc_hull_points).vertices])
 
         # create graph
         overlay_graph = createTINgraph(graph_nodes)
@@ -223,6 +281,7 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
 
         # take the biggest polygon
         contour = polygon_coords[nb_line][0]
+
         # print the polygon on the text
         cv2.polylines(poly_img_text, np.array([[[np.int(p[1]), np.int(p[0])] for p in contour]]), 1, color=(248, 24, 148))
 
@@ -390,10 +449,11 @@ def detect_outliers(area):
 
 
 def find_cc_from_centroid(c, cc_properties):
-    c[0], c[1] = c[1], c[0]
+#   c[0], c[1] = c[1], c[0]
     for cc in cc_properties:
-        if (np.asarray(cc.centroid[0:2]) == c).all():
+        if cc.centroid[0] == c[0] and cc.centroid[1] == c[1]:
             return cc
+    print("If this is printed, you might want to uncomment the line swapping the coordinates!")
     return None
 
 
@@ -684,10 +744,10 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/test4.png',
+    extract_textline(input_loc='./../data/CB55/e-codices_fmb-cb-0055_0105r_max.png',
                      output_loc='./../../output',
                      seam_every_x_pxl=10,
                      nb_of_lives=0,
                      penalty=2500,
-                     testing=True)
+                     testing=False)
     logging.info('Terminated')
