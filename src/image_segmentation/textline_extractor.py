@@ -11,11 +11,12 @@ from scipy.spatial import distance
 from skimage import measure
 
 #######################################################################################################################
-from src.image_segmentation.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
-    graph_to_point_lists, GraphLogger
-from src.image_segmentation.util import create_folder_structure, save_img
+from src.image_segmentation.utils.graph_logger import GraphLogger
+from src.image_segmentation.utils.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
+    graph_to_point_lists
+from src.image_segmentation.utils.util import create_folder_structure, save_img
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
-from src.image_segmentation.XMLhandler import writePAGEfile
+from src.image_segmentation.utils.XMLhandler import writePAGEfile
 
 
 def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,
@@ -50,7 +51,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
 
     # blow up image with the help of seams
     img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, show_seams,
-                                                                testing, seam_every_x_pxl, nb_of_iterations)
+                                                               testing, seam_every_x_pxl, nb_of_iterations)
 
     nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc)
 

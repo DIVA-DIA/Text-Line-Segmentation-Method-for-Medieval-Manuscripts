@@ -10,7 +10,7 @@ import cv2
 from scipy.spatial import Delaunay
 from shapely.geometry import LineString
 
-from src.image_segmentation.util import save_img
+from src.image_segmentation.utils.util import save_img
 
 
 def createTINgraph(points):
@@ -94,7 +94,13 @@ def cut_graph_with_seams(graph, seams, too_small_pc):
     start = time.time()
     # -------------------------------
 
-    unique_edges, weights = find_intersected_edges(graph, seams)
+    tic = time.time()
+    unique_edges, weights, occurrences = find_intersected_edges(graph, seams)
+    logging.info("find_intersected_edges: {}".format(time.time()-tic))
+
+    # create histogram and save it
+    # plt.hist(occurrences, bins='auto')
+    # plt.savefig(os.path.join(output_path, 'histo/histogram_of_intersection_occurrences.png'))
 
     # remove the edges from the graph
     graph.remove_edges_from(unique_edges)
@@ -156,8 +162,6 @@ def chunks(l, n):
 
 
 def find_intersected_edges(graph, seams):
-    graph_img = GraphLogger.draw_graph(img=[], graph=graph, save=True, name='triangulated_graph.png')
-
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
     seams_y = [np.array(s)[:, 1] for s in seams]
     seams_max_y = np.max(seams_y, axis=1)
@@ -203,10 +207,11 @@ def find_intersected_edges(graph, seams):
     #             edges_to_remove.append(edge)
     #             break
 
-    GraphLogger.draw_edges(graph_img, edges_to_remove, graph, (0, 0, 255), 5, True, "graph_with_unique_edges.png")
+    # getting unique edges and counting them (how many times they where hit by a seam)
+    unique_edges, occurrences = np.unique(np.array(edges_to_remove), return_counts=True, axis=0)
+    weights = [graph.edges[edge]['weight'] for edge in unique_edges]
 
-    weights = [graph.edges[edge]['weight'] for edge in edges_to_remove]
-    return edges_to_remove, weights
+    return unique_edges, weights, occurrences
 
 
 def merge_small_graphs(graph, small_graphs, unique_edges, weights):
@@ -226,6 +231,7 @@ def merge_small_graphs(graph, small_graphs, unique_edges, weights):
         # get edge to restore and add it to the list of edges to add
         edge = unique_edges[min_edge_idx]
         unique_edges = np.delete(unique_edges, min_edge_idx, axis=0)
+        weights = np.delete(weights, min_edge_idx, axis=0)
         edges_to_add.append((edge[0], edge[1], weights[min_edge_idx]))
     # add again the edges
     graph.add_weighted_edges_from(edges_to_add)
@@ -252,42 +258,3 @@ def detect_small_graphs(graphs, too_small_pc):
     # return graphs[too_small]
     return graphs[too_small]
 
-
-class GraphLogger:
-    IMG_SHAPE = ()
-    ROOT_OUTPUT_PATH = ''
-
-    @classmethod
-    def draw_graphs(cls, img, graphs, color=(0, 255, 0), thickness=3, name='graph.png'):
-        if not list(img):
-            img = np.zeros(cls.IMG_SHAPE)
-        else:
-            img = img.copy()
-
-        for graph in graphs:
-            img = cls.draw_graph(img, graph, color, thickness, False)
-
-        save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
-
-    @classmethod
-    def draw_graph(cls, img, graph, color=(0, 255, 0), thickness=3, save=False, name='graph.png'):
-        if not list(img):
-            img = np.zeros(cls.IMG_SHAPE)
-        else:
-            img = img.copy()
-
-        cls.draw_edges(img, graph.edges, graph, color, thickness, save=False)
-
-        if save:
-            save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
-
-        return img
-
-    @classmethod
-    def draw_edges(cls, img, edges, graph, color, thickness, save=False, name='graph.png'):
-        for edge in edges:
-            p1, p2 = get_edge_node_coordinates(edge, graph)
-            cv2.line(img, p1, p2, color, thickness=thickness)
-
-        if save:
-            save_img(img, path=os.path.join(cls.ROOT_OUTPUT_PATH, 'graph', name), show=False)
