@@ -4,10 +4,10 @@ import numpy as np
 from sigopt import Connection
 from src.image_segmentation.evaluate_algorithm import evaluate
 
-#INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m" , "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
-#INPUT_FOLDERS_XML = ["/dataset/CB55/test-page" , "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
-INPUT_FOLDERS_PXL = ["/dataset/CSG863/test-m)"]
-INPUT_FOLDERS_XML = ["/dataset/CSG863/test-page)"]
+INPUT_FOLDERS_PXL = ["/dataset/CB55/private-m", "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
+INPUT_FOLDERS_XML = ["/dataset/CB55/private-page", "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
+# INPUT_FOLDERS_PXL = ["/dataset/CSG863/test-m"]
+# INPUT_FOLDERS_XML = ["/dataset/CSG863/test-page"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
@@ -24,10 +24,10 @@ if __name__ == '__main__':
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="Line Segmentation - bin for the win",
+        name="Line Segmentation - bin for the win - on private",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=1500, max=4000)),
-            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=50)),
+            dict(name="penalty", type="int", bounds=dict(min=100, max=6000)),
+            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=70)),
         ],
         metrics=[dict(name="line IU")],
         observation_budget=30,
