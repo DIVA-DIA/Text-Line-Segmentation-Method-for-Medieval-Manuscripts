@@ -24,12 +24,8 @@ def create_folder_structure(input_file, output_path, params):
     # create basefolder
     if not os.path.exists(basefolder_path):
         os.mkdir(basefolder_path)
-        # create graph folder
-        os.mkdir(os.path.join(basefolder_path, 'graph'))
         # create energy maps folder
         os.mkdir(os.path.join(basefolder_path, 'energy_map'))
-        # create histo folder
-        os.mkdir(os.path.join(basefolder_path, 'histo'))
         # create histo folder
         os.mkdir(os.path.join(basefolder_path, 'logs'))
 

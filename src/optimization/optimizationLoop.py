@@ -14,19 +14,19 @@ def evaluate_metric(assignments):
 
 if __name__ == '__main__':
     # Real Token
-    #conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
         name="Line Segmentation - bin for the win - on private",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=100, max=6000)),
-            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=70)),
+            dict(name="penalty", type="int", bounds=dict(min=1000, max=13000)),
+            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=150)),
         ],
         metrics=[dict(name="line IU")],
-        observation_budget=30,
+        observation_budget=100,
         parallel_bandwidth=1
     )
 
