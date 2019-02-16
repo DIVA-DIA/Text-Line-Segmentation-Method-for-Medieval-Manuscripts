@@ -1,0 +1,3 @@
+name, nbLinesGt, countedNbLines
+e-codices_csg-0018_063_max_gt, 31, 27
+

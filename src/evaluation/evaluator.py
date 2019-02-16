@@ -13,14 +13,13 @@ def get_score(logs):
             return float(line_ui[0])
 
 
-def JavaTheFloorIsLava(input_img, input_xml, input_gt, output_path, eval_tool):
+def JavaTheFloorIsLava(input_img, input_xml, input_gt, eval_tool):
     print("RavaLaJava")
     tic = time.time()
     p = Popen(['java', '-jar', eval_tool,
                '-igt', input_img,
                '-xgt', input_gt,
                '-xp',  input_xml,
-               '-out', output_path,
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]
     line_iu = get_score(logs)
@@ -30,18 +29,14 @@ def JavaTheFloorIsLava(input_img, input_xml, input_gt, output_path, eval_tool):
 
 def JARJARiAMaPirate(input_img, input_xml, input_gt, output_path):
     print("Yarrr!!!!")
-
     return 10000
 
 
 if __name__ == "__main__":
-    OUTPUT_FOLDER = "./evaluation/"
     NUM_CORES = 0
-    EVAL_TOOL = "./evaluation/LineSegmentationEvaluator.jar"
-    INPUT_PXL = "./evaluation/e-codices_fmb-cb-0055_0098v_max.png"
-    INPUT_XML = "./evaluation/polygons.xml"
-    INPUT_GT  = "./evaluation/e-codices_fmb-cb-0055_0098v_max.xml"
+    EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
+    INPUT_PXL = "./src/evaluation/e-codices_csg-0863_005_max_gt.png"
+    INPUT_XML = "./src/evaluation/polygons.xml"
+    INPUT_GT  = "./src/evaluation/e-codices_csg-0863_005_max_gt.xml"
 
-    a = JavaTheFloorIsLava(input_img=INPUT_PXL, input_xml=INPUT_XML, input_gt=INPUT_GT, output_path=OUTPUT_FOLDER, eval_tool=EVAL_TOOL)
-    b = JARJARiAMaPirate(input_img=INPUT_PXL, input_xml=INPUT_XML, input_gt=INPUT_GT, output_path=OUTPUT_FOLDER)
-    assert a == b
+    a = JavaTheFloorIsLava(input_img=INPUT_PXL, input_xml=INPUT_XML, input_gt=INPUT_GT, eval_tool=EVAL_TOOL)
