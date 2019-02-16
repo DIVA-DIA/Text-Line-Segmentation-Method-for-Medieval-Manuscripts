@@ -1,22 +1,21 @@
 # Utils
 import logging
 import os
+import sys
 import time
 
 import cv2
-import sys
-import numpy as np
 import networkx as nx
+import numpy as np
 from scipy.spatial import distance
 from skimage import measure
 
-#######################################################################################################################
-from src.image_segmentation.utils.graph_logger import GraphLogger
-from src.image_segmentation.utils.graph_util import createTINgraph, print_graph_on_img, cut_graph_with_seams, \
-    graph_to_point_lists
-from src.image_segmentation.utils.util import create_folder_structure, save_img
 from src.image_segmentation.seamcarving import horizontal_seam, draw_seam
 from src.image_segmentation.utils.XMLhandler import writePAGEfile
+#######################################################################################################################
+from src.image_segmentation.utils.graph_logger import GraphLogger
+from src.image_segmentation.utils.graph_util import createTINgraph, print_graph_on_img
+from src.image_segmentation.utils.util import create_folder_structure, save_img
 
 
 def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,

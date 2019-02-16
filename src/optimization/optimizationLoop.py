@@ -1,13 +1,9 @@
-import os
-
-import numpy as np
 from sigopt import Connection
+
 from src.image_segmentation.evaluate_algorithm import evaluate
 
-#INPUT_FOLDERS_PXL = ["/dataset/CB55/test-m" , "/dataset/CSG18/test-m", "/dataset/CSG863/test-m)"]
-#INPUT_FOLDERS_XML = ["/dataset/CB55/test-page" , "/dataset/CSG18/test-page", "/dataset/CSG863/test-page)"]
-INPUT_FOLDERS_PXL = ["/dataset/CSG863/test-m)"]
-INPUT_FOLDERS_XML = ["/dataset/CSG863/test-page)"]
+INPUT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m)"]
+INPUT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
@@ -20,13 +16,13 @@ if __name__ == '__main__':
     # Real Token
     conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
         name="Line Segmentation - bin for the win",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=1500, max=4000)),
+            dict(name="penalty", type="int", bounds=dict(min=1500, max=6000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=50)),
         ],
         metrics=[dict(name="line IU")],
@@ -54,5 +50,5 @@ if __name__ == '__main__':
 
     # Fetch the best configuration and explore your experiment
     best_assignments = conn.experiments(experiment.id).best_assignments().fetch().data[0].assignments
-    print("Best Assignments: " + best_assignments)
+    print("Best Assignments: " + str(best_assignments))
     print("Explore your experiment: https://app.sigopt.com/experiment/" + experiment.id + "/analysis")
