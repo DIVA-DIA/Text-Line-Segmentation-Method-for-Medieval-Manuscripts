@@ -20,13 +20,13 @@ if __name__ == '__main__':
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="Line Segmentation - bin for the win - on private",
+        name="Line Segmentation - bin - on vinay - bidirectional",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=100, max=6000)),
-            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=1, max=70)),
+            dict(name="penalty", type="int", bounds=dict(min=3000, max=13000)),
+            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=20, max=120)),
         ],
         metrics=[dict(name="line IU")],
-        observation_budget=30,
+        observation_budget=100,
         parallel_bandwidth=1
     )
 

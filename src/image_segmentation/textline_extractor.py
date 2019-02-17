@@ -112,12 +112,6 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
         # create the energy map
         ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
-        # bidirectional energy map
-        # bi_energy_map = build_seam_energy_map(ori_energy_map)
-
-        # show_img((ori_enegery_map/max_en) * 255)
-        # energy_map_representation = np.copy(ori_energy_map)
-
         # visualize the energy map as heatmap
         heatmap = create_heat_map_visualization(ori_energy_map)
 
@@ -135,7 +129,7 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
         for seam_at in range(0, img.shape[0], seam_every_x_pxl):
             energy_map = prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
-            seam = horizontal_seam(energy_map, penalty=True, penalty_div=penalty)
+            seam = horizontal_seam(energy_map, penalty_div=penalty, bidirectional=True)
             seams.append(seam)
             if show_seams:
                 draw_seam(heatmap, seam)
@@ -738,15 +732,15 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  testing=False)
     # extract_textline(input_loc='../data/test1.png',
-    #                  output_loc='../results/exp',
+    #                  output_loc='../../output',
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=0,
     #                  penalty=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/e-codices_fmb-cb-0055_0105r_max.png',
+    extract_textline(input_loc='./../data/fail/e-codices_fmb-cb-0055_0109r_max_gt.png',
                      output_loc='./../../output',
-                     seam_every_x_pxl=10,
+                     seam_every_x_pxl=90,
                      nb_of_lives=0,
-                     penalty=2500,
+                     penalty=1686,
                      testing=False)
     logging.info('Terminated')

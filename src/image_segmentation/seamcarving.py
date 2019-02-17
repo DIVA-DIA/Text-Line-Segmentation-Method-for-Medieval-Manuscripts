@@ -13,26 +13,34 @@ import numba
 
 
 @numba.jit()
-def horizontal_seam(energies, penalty=True, penalty_div=3000):
+def horizontal_seam(energies, penalty_div, bidirectional=False):
+    """
+    Spawns seams from the left to the right or from both directions. It returns the list of seams as point list.
+
+    :param energies: the energy map
+    :param penalty_div: if the penalty is smaller or equal to 0 we wont apply a penalty reduction
+    :param bidirectional: if True there will be seams from left to right and right to left, else just from left to right
+    :return: seams as point list
+    """
     height, width = energies.shape[:2]
-    # the y position we started
+    # the y position we started (needed for the penalty)
     ori_y = 0
+    # the last point we visit
     previous = 0
+    # the points of the seam
     seam = []
 
-    # quadratic penalty
-    # (ori_y - (privious - 1)) ** 2
-
+    # spawns seams from left to right
     for i in range(0, width, 1):
         col = energies[:, i]
         if i == 0:
             ori_y = previous = np.argmin(col)
         else:
             top = col[previous - 1] if previous - 1 >= 0 else sys.maxsize
-            middle = col[previous]  # if previous != height else 1e6
+            middle = col[previous]
             bottom = col[previous + 1] if previous + 1 < height else sys.maxsize
 
-            if penalty:
+            if penalty_div > 0:
                 top += ((ori_y - (previous - 1)) ** 2) / penalty_div
                 middle += ((ori_y - previous) ** 2) / penalty_div
                 bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_div
@@ -40,6 +48,26 @@ def horizontal_seam(energies, penalty=True, penalty_div=3000):
             previous = previous + np.argmin([top, middle, bottom]) - 1
 
         seam.append([i, previous])
+
+    # spawns seams from right to left
+    if bidirectional:
+        for i in range(width-1, -1, -1):
+            col = energies[:, i]
+            if i == width-1:
+                ori_y = previous = np.argmin(col)
+            else:
+                top = col[previous - 1] if previous - 1 >= 0 else sys.maxsize
+                middle = col[previous]
+                bottom = col[previous + 1] if previous + 1 < height else sys.maxsize
+
+                if penalty_div > 0:
+                    top += ((ori_y - (previous - 1)) ** 2) / penalty_div
+                    middle += ((ori_y - previous) ** 2) / penalty_div
+                    bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_div
+
+                previous = previous + np.argmin([top, middle, bottom]) - 1
+
+            seam.append([i, previous])
 
     return seam
 
@@ -52,68 +80,3 @@ def draw_seam(img, seam, show=False):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-
-def build_seam_energy_map(energy_map):
-    # TODO take min
-    return calculate_forward_energy(energy_map) + calculate_backward_energy(energy_map)
-
-
-# calculates the energy values from left to right
-@numba.jit()
-def calculate_forward_energy(energy_map):
-    seam_map = np.copy(energy_map)
-    height, width = energy_map.shape[:2]
-
-    for i in range(1, width, 1):
-        last_col = seam_map[:, i - 1]
-        current_col = seam_map[:, i]
-
-        for idx, cell in enumerate(current_col):
-            top = last_col[idx - 1] if idx != 0 else sys.maxsize
-            mid = last_col[idx]
-            bot = last_col[idx + 1] if idx + 1 < height else sys.maxsize
-
-            current_col[idx] = cell + np.min([top, mid, bot])
-
-    return seam_map
-
-
-# calculates the energy values from right to left
-@numba.jit()
-def calculate_backward_energy(energy_map):
-    seam_map = np.copy(energy_map)
-    height, width = energy_map.shape[:2]
-
-    for i in range(width - 2, -1, -1):
-        last_col = seam_map[:, i + 1]
-        current_col = seam_map[:, i]
-
-        for idx, cell in enumerate(current_col):
-            top = last_col[idx - 1] if idx != 0 else sys.maxsize
-            mid = last_col[idx]
-            bot = last_col[idx + 1] if idx + 1 < height else sys.maxsize
-
-            current_col[idx] = cell + np.min([top, mid, bot])
-
-    return seam_map
-
-# def remove_horizontal_seam(img, seam):
-#     height, width, bands = img.shape
-#     removed = np.zeros((height - 1, width, bands), np.uint8)
-#
-#     for x, y in reversed(seam):
-#         removed[0:y, x] = img[0:y, x]
-#         removed[y:height - 1, x] = img[y + 1:height, x]
-#
-#     return removed
-#
-#
-# def remove_vertical_seam(img, seam):
-#     height, width, bands = img.shape
-#     removed = np.zeros((height, width - 1, bands), np.uint8)
-#
-#     for x, y in reversed(seam):
-#         removed[y, 0:x] = img[y, 0:x]
-#         removed[y, x:width - 1] = img[y, x + 1:width]
-#
-#     return removed
