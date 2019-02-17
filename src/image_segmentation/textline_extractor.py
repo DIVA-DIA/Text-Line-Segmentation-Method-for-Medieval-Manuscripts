@@ -731,16 +731,16 @@ if __name__ == "__main__":
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=0,
     #                  testing=False)
-    extract_textline(input_loc='../data/test1.png',
-                     output_loc='../../output',
-                     seam_every_x_pxl=5,
-                     nb_of_lives=0,
-                     penalty=6000,
-                     testing=True)
-    # extract_textline(input_loc='./../data/e-codices_fmb-cb-0055_0105r_max.png',
-    #                  output_loc='./../../output',
-    #                  seam_every_x_pxl=10,
+    # extract_textline(input_loc='../data/test1.png',
+    #                  output_loc='../../output',
+    #                  seam_every_x_pxl=5,
     #                  nb_of_lives=0,
-    #                  penalty=2500,
-    #                  testing=False)
+    #                  penalty=6000,
+    #                  testing=True)
+    extract_textline(input_loc='./../data/fail/e-codices_fmb-cb-0055_0109r_max_gt.png',
+                     output_loc='./../../output',
+                     seam_every_x_pxl=90,
+                     nb_of_lives=0,
+                     penalty=1686,
+                     testing=False)
     logging.info('Terminated')
