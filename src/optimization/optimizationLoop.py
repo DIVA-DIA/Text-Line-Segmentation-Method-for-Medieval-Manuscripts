@@ -2,8 +2,8 @@ from sigopt import Connection
 
 from src.image_segmentation.evaluate_algorithm import evaluate
 
-INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m", "/dataset/CSG18/output-m", "/dataset/CSG863/output-m"]
-INPUT_FOLDERS_XML = ["/dataset/CB55/private-page", "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
+INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-m", "/dataset/CSG863/output-m)"]
+INPUT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page)"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
@@ -14,9 +14,9 @@ def evaluate_metric(assignments):
 
 if __name__ == '__main__':
     # Real Token
-    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    #conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
