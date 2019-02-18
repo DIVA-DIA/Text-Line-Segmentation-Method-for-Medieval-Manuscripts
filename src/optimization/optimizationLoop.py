@@ -10,7 +10,7 @@ EVAL_TOOL = "./src/evaluation/LineSegmentationEvaluator.jar"
 
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
-                    assignments['penalty'], 1, assignments['seam_every_x_pxl'], 0)
+                    assignments['penalty_reduction'], 1, assignments['seam_every_x_pxl'], 0)
 
 if __name__ == '__main__':
     # Real Token
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     experiment = conn.experiments().create(
         name="Line Segmentation - bin - on vinay - bidirectional",
         parameters=[
-            dict(name="penalty", type="int", bounds=dict(min=3000, max=13000)),
+            dict(name="penalty_reduction", type="int", bounds=dict(min=3000, max=13000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=20, max=120)),
         ],
         metrics=[dict(name="line IU")],
