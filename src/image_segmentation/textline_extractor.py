@@ -19,7 +19,7 @@ from src.image_segmentation.utils.util import create_folder_structure, save_img
 
 
 def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,
-                     nb_of_lives=10, too_small_pc=0.3, testing=False):
+                     nb_of_lives=-1, too_small_pc=0.3, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     :param input_loc: path to segmented image
@@ -187,13 +187,35 @@ def majority_voting(centroids, seams):
         for bin in small_bins:
             # find the indexes of the samples which are undernumbered
             for loc in np.where(bin_index==bin)[0]:
-                # adapt index for prevent out of bounds
+                # look for the next available bin below
                 loc_p = loc + 1 if loc + 1 < len(values) else loc
-                loc_m = loc - 1 if loc > 0 else loc
+                while bin_index[loc_p] == bin_index[loc]:
+                    if loc_p + 1 < len(values):
+                        loc_p += 1
+                    else:
+                        break
 
-                # compute distances to neighbors
-                upper = abs(values[loc_p] - values[loc])
-                lower = abs(values[loc_m] - values[loc])
+                # look for the next available bin above
+                loc_m = loc - 1 if loc > 0 else loc
+                while bin_index[loc_m] == bin_index[loc]:
+                    if loc_m > 0:
+                        loc_m -= 1
+                    else:
+                        break
+
+                # compute distances to neighbors with the EUC distance
+                XA = np.expand_dims(centroids[loc], axis=0)
+                upper = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_p])], 'euclidean').min()
+                lower = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_m])], 'euclidean').min()
+
+                # -------------------------------------
+                # COMMENTED but kept for legacy reasons
+                # adapt index for prevent out of bounds
+                # loc_p = loc + 1 if loc + 1 < len(values) else loc
+                # loc_m = loc - 1 if loc > 0 else loc
+                # compute distances to neighbors with the bin index
+                # upper = abs(values[loc_p] - values[loc])
+                # lower = abs(values[loc_m] - values[loc])
 
                 values[loc] = values[loc_m] if (upper == 0 or upper > lower) and lower != 0 else values[loc_p]
 
@@ -737,10 +759,9 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/fail/e-codices_fmb-cb-0055_0109r_max_gt.png',
+    extract_textline(input_loc='./../data/e-codices_fmb-cb-0055_0122v_max_output.png',
                      output_loc='./../../output',
                      seam_every_x_pxl=90,
-                     nb_of_lives=0,
-                     penalty=1686,
+                     penalty=5000,
                      testing=False)
     logging.info('Terminated')
