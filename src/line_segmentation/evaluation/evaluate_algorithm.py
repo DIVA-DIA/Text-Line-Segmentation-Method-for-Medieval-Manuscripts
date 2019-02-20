@@ -37,8 +37,8 @@ def get_score(logs):
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
-    param_string = "_penalty_{}_iterations_{}_seams_{}_lives_{}".format(
-        param_list['penalty'],
+    param_string = "penalty_reduction_{}_iterations_{}_seams_{}_lives_{}".format(
+        param_list['penalty_reduction'],
         param_list['nb_of_iterations'],
         param_list['seam_every_x_pxl'],
         param_list['nb_of_lives'])
@@ -74,7 +74,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
 
 
 def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
-             penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives, **kwargs):
+             penalty_reduction, nb_of_iterations, seam_every_x_pxl, nb_of_lives, **kwargs):
 
     # Select the number of threads
     if j == 0:
@@ -95,8 +95,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Create output path for run
     tic = time.time()
     current_time = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
-    output_path = os.path.join(output_path, 'penalty_{}_seams_{}_lives_{}_iter_{}_t_{}'.format(
-        penalty,
+    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}_lives_{}_iter_{}_t_{}'.format(
+        penalty_reduction,
         seam_every_x_pxl,
         nb_of_lives,
         nb_of_iterations,
@@ -114,7 +114,7 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # input_xml = input_xml[0:3]
 
     # For each file run
-    param_list = dict(penalty=penalty, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
+    param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
     results = list(pool.starmap(compute_for_all, zip(input_images,
                                                 input_xml,
                                                 itertools.repeat(output_path),
@@ -147,7 +147,7 @@ if __name__ == "__main__":
                         help='path to store output files')
 
     # Method parameters
-    parser.add_argument('--penalty', type=int,
+    parser.add_argument('--penalty-reduction', type=int,
                         required=True,
                         help='path to store output files')
     parser.add_argument('--seam-every-x-pxl', type=int,

@@ -13,12 +13,12 @@ import numba
 
 
 @numba.jit()
-def horizontal_seam(energies, penalty_div, bidirectional=False):
+def horizontal_seam(energies, penalty_reduction, bidirectional=False):
     """
     Spawns seams from the left to the right or from both directions. It returns the list of seams as point list.
 
     :param energies: the energy map
-    :param penalty_div: if the penalty is smaller or equal to 0 we wont apply a penalty reduction
+    :param penalty_reduction: if the penalty_reduction is smaller or equal to 0 we wont apply a penalty reduction
     :param bidirectional: if True there will be seams from left to right and right to left, else just from left to right
     :return: seams as point list
     """
@@ -40,10 +40,10 @@ def horizontal_seam(energies, penalty_div, bidirectional=False):
             middle = col[previous]
             bottom = col[previous + 1] if previous + 1 < height else sys.maxsize
 
-            if penalty_div > 0:
-                top += ((ori_y - (previous - 1)) ** 2) / penalty_div
-                middle += ((ori_y - previous) ** 2) / penalty_div
-                bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_div
+            if penalty_reduction > 0:
+                top += ((ori_y - (previous - 1)) ** 2) / penalty_reduction
+                middle += ((ori_y - previous) ** 2) / penalty_reduction
+                bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_reduction
 
             previous = previous + np.argmin([top, middle, bottom]) - 1
 
@@ -60,10 +60,10 @@ def horizontal_seam(energies, penalty_div, bidirectional=False):
                 middle = col[previous]
                 bottom = col[previous + 1] if previous + 1 < height else sys.maxsize
 
-                if penalty_div > 0:
-                    top += ((ori_y - (previous - 1)) ** 2) / penalty_div
-                    middle += ((ori_y - previous) ** 2) / penalty_div
-                    bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_div
+                if penalty_reduction > 0:
+                    top += ((ori_y - (previous - 1)) ** 2) / penalty_reduction
+                    middle += ((ori_y - previous) ** 2) / penalty_reduction
+                    bottom += + ((ori_y - (previous + 1)) ** 2) / penalty_reduction
 
                 previous = previous + np.argmin([top, middle, bottom]) - 1
 
