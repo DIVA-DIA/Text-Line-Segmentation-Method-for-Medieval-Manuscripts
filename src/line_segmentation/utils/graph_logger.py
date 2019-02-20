@@ -3,8 +3,8 @@ import os
 
 import numpy as np
 
-from src.image_segmentation.utils.graph_util import get_edge_node_coordinates
-from src.image_segmentation.utils.util import save_img
+from src.line_segmentation.utils.graph_util import get_edge_node_coordinates
+from src.line_segmentation.utils.util import save_img
 
 
 class GraphLogger:

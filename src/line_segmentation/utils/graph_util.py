@@ -10,7 +10,18 @@ import cv2
 from scipy.spatial import Delaunay
 from shapely.geometry import LineString
 
-from src.image_segmentation.utils.util import save_img
+from src.line_segmentation.utils.util import save_img
+
+
+# Lars
+# triangulate the CC; transform into a graph
+# graph = createTINgraph(centroids)
+#
+# # use the seams to cut them into graphs
+# graphs = cut_graph_with_seams(graph, last_seams, too_small_pc)
+#
+# GraphLogger.draw_graphs(img, graphs, name='cut_graph.png')
+#
 
 
 def createTINgraph(points):

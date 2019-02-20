@@ -8,8 +8,8 @@ from subprocess import Popen, PIPE, STDOUT
 
 import numpy as np
 
-from src.image_segmentation.overall_score import gather_stats
-from src.image_segmentation.textline_extractor import extract_textline
+from src.line_segmentation.evaluation.overall_score import gather_stats
+from src.line_segmentation.line_segmentation import extract_textline
 
 
 def check_extension(filename, extension_list):
@@ -108,8 +108,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Debugging purposes only!
     # input_images = [input_images[4]]
     # input_xml = [input_xml[4]]
-    input_images = [input_images[0]]
-    input_xml = [input_xml[0]]
+    # input_images = [input_images[0]]
+    # input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
@@ -153,8 +153,6 @@ if __name__ == "__main__":
     parser.add_argument('--seam-every-x-pxl', type=int,
                         required=True,
                         help='how many pixels between the seams')
-    parser.add_argument('--nb-of-lives', type=int,
-                        help='amount of lives an edge has')
     parser.add_argument('--nb-of-iterations', type=int,
                         default=1,
                         help='number of iterations')
