@@ -12,8 +12,11 @@ def load_image(path):
     if not os.path.exists(path):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
-    return cv2.imread(path)
+    img = cv2.imread(path)
+    if img is None:
+        raise Exception("Image is empty or corrupted", path)
 
+    return img
 
 def prepare_image(img, testing, cropping=True):
     # -------------------------------
