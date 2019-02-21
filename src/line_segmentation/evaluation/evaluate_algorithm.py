@@ -39,7 +39,7 @@ def get_score(logs):
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
-    param_string = "penalty_reduction_{}_iterations_{}_seams_{}".format(
+    param_string = "_penalty_reduction_{}_iterations_{}_seams_{}".format(
         param_list['penalty_reduction'],
         param_list['nb_of_iterations'],
         param_list['seam_every_x_pxl'])
@@ -110,8 +110,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Debugging purposes only!
     # input_images = [input_images[4]]
     # input_xml = [input_xml[4]]
-    # input_images = [input_images[0]]
-    # input_xml = [input_xml[0]]
+    input_images = [input_images[0]]
+    input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 

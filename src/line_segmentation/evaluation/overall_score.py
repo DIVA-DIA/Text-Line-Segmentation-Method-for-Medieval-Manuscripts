@@ -8,7 +8,7 @@ def write_stats(path, errors):
     stats = np.array([(_get_lines(folder, path), folder) for folder
                       in folders if os.path.exists(os.path.join(path, folder, 'results.csv'))])
 
-    if stats:
+    if list(stats):
         with open(os.path.join(path, 'logs.txt'), 'w') as f:
             avg_line_iu = np.average([np.float32(line[0][1][4]) for line in stats])
             print('Average lineUI: {}'.format(avg_line_iu))
@@ -26,7 +26,7 @@ def write_stats(path, errors):
 
     with open(os.path.join(path, 'error_log.txt'), 'w') as f:
         for error in errors:
-            f.writelines(error[1][0].decode('ascii'))
+            f.writelines([line.decode('ascii') for line in error[1]])
             f.write("\n--------------------------------------------------\n\n")
 
 
