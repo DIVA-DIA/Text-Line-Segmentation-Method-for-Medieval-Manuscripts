@@ -16,8 +16,8 @@ from src.line_segmentation.utils.graph_logger import GraphLogger
 from src.line_segmentation.utils.graph_util import createTINgraph, print_graph_on_img
 from src.line_segmentation.utils.util import create_folder_structure, save_img
 from src.line_segmentation.preprocessing.load_image import prepare_image
-from src.line_segmentation.preprocessing.energy_map import create_heat_map_visualization, prepare_energy, \
-    create_energy_map
+import src.line_segmentation.preprocessing.energy_map
+# import create_heat_map_visualization, prepare_energy, create_energy_map
 
 
 #######################################################################################################################
@@ -98,10 +98,10 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
     img = prepare_image(img, testing=testing, cropping=False)
 
     # create the energy map
-    ori_energy_map, cc = create_energy_map(img, blurring=False, projection=True, asymmetric=False)
+    ori_energy_map, cc = src.line_segmentation.preprocessing.energy_map.create_energy_map(img, blurring=False, projection=True, asymmetric=False)
 
     # visualize the energy map as heatmap
-    heatmap = create_heat_map_visualization(ori_energy_map)
+    heatmap = src.line_segmentation.preprocessing.energy_map.create_heat_map_visualization(ori_energy_map)
 
     save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_without_seams.png'), show=False)
 
@@ -115,16 +115,16 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
 
     # show_img(ori_enegery_map)
     for seam_at in range(0, img.shape[0], seam_every_x_pxl):
-        energy_map = prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
+        energy_map = src.line_segmentation.preprocessing.energy_map.prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_div=penalty, bidirectional=True)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty, bidirectional=True)
         seams.append(seam)
         if show_seams:
             draw_seam(heatmap, seam)
 
     last_seams = seams
 
-    save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams_({}).png'.format(i)), show=False)
+    save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'), show=False)
 
     # -------------------------------
     stop = time.time()
@@ -284,7 +284,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/e-codices_fmb-cb-0055_0122v_max_output.png',
+    extract_textline(input_loc='./../data/test/e-codices_fmb-cb-0055_0019r_max_output.png',
                      output_loc='./../../output',
                      seam_every_x_pxl=90,
                      penalty=5000,
