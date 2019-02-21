@@ -3,12 +3,13 @@ import itertools
 import os
 import time
 import re
-from multiprocessing import Pool, cpu_count
-from subprocess import Popen, PIPE, STDOUT
+import traceback
 
 import numpy as np
 
-from src.line_segmentation.evaluation.overall_score import gather_stats
+from multiprocessing import Pool, cpu_count
+from subprocess import Popen, PIPE, STDOUT
+from src.line_segmentation.evaluation.overall_score import write_stats
 from src.line_segmentation.line_segmentation import extract_textline
 
 
@@ -34,14 +35,14 @@ def get_score(logs):
             line_ui = line.split('=')[1][0:8]
             line_ui = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", line_ui)
             return float(line_ui[0])
+    return None
 
 
 def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
-    param_string = "penalty_reduction_{}_iterations_{}_seams_{}_lives_{}".format(
+    param_string = "penalty_reduction_{}_iterations_{}_seams_{}".format(
         param_list['penalty_reduction'],
         param_list['nb_of_iterations'],
-        param_list['seam_every_x_pxl'],
-        param_list['nb_of_lives'])
+        param_list['seam_every_x_pxl'])
 
     print("Starting: {} with {}".format(input_img, param_string))
     # Run the tool
@@ -49,6 +50,8 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
         predicted_nb_lines = extract_textline(input_img, output_path, **param_list)
         print("Done: {} with {}".format(input_img, param_string))
     except:
+        # ford debugging
+        # traceback.print_exc()
         print("Failed for some reason")
         return [-1, [], param_list]
 
@@ -74,7 +77,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
 
 
 def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
-             penalty_reduction, nb_of_iterations, seam_every_x_pxl, nb_of_lives, **kwargs):
+             penalty_reduction, nb_of_iterations, seam_every_x_pxl, **kwargs):
 
     # Select the number of threads
     if j == 0:
@@ -95,10 +98,9 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Create output path for run
     tic = time.time()
     current_time = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
-    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}_lives_{}_iter_{}_t_{}'.format(
+    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}_iter_{}_t_{}'.format(
         penalty_reduction,
         seam_every_x_pxl,
-        nb_of_lives,
         nb_of_iterations,
         current_time))
 
@@ -114,7 +116,7 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # input_xml = input_xml[0:3]
 
     # For each file run
-    param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl, nb_of_lives=nb_of_lives, nb_of_iterations=nb_of_iterations)
+    param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl, nb_of_iterations=nb_of_iterations)
     results = list(pool.starmap(compute_for_all, zip(input_images,
                                                 input_xml,
                                                 itertools.repeat(output_path),
@@ -122,11 +124,24 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
                                                 itertools.repeat(eval_tool))))
     pool.close()
     print("Pool closed)")
-    score = np.mean([item[0] for item in results])
+
+    scores = []
+    errors = []
+
+    for item in results:
+        if item[0] is not None:
+            scores.append(item[0])
+        else:
+            errors.append(item)
+
+    if list(scores):
+        score = np.mean(scores)
+    else:
+        score = -1
 
     np.save(os.path.join(output_path, 'results.npy'), results)
-    avg_line_iu = gather_stats(output_path)
-    print('Total time taken: {:.2f}, avg_line_iu={}'.format(time.time() - tic, avg_line_iu))
+    write_stats(output_path, errors)
+    print('Total time taken: {:.2f}, avg_line_iu={}, nb_errors={}'.format(time.time() - tic, score, len(errors)))
     return score
 
 
