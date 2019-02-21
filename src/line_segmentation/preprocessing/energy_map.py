@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from scipy.spatial import distance
 
-from src.line_segmentation.line_segmentation import get_connected_components, cut_img
+import src.line_segmentation.line_segmentation
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 
 
@@ -217,7 +217,7 @@ def find_cc_centroids_areas(img):
     # -------------------------------
     #############################################
     # Find CC
-    cc_labels, cc_properties = get_connected_components(img)
+    cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
 
     amount_of_properties = 0
 
@@ -226,10 +226,10 @@ def find_cc_centroids_areas(img):
         amount_of_properties = len(cc_properties)
         #############################################
         # Cut all large components into smaller components
-        img[:, :, 1] = cut_img(img[:, :, 1], cc_properties)
+        img[:, :, 1] = src.line_segmentation.line_segmentation.cut_img(img[:, :, 1], cc_properties)
 
         # Re-find CC
-        cc_labels, cc_properties = get_connected_components(img)
+        cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
         #############################################
 
     # Collect CC centroids
