@@ -8,9 +8,11 @@ OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/line_evaluation/evaluation/LineSegmentationEvaluator.jar"
 
+
 def evaluate_metric(assignments):
     return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
-                    assignments['penalty_reduction'], 1, assignments['seam_every_x_pxl'], 0)
+                    assignments['penalty_reduction'], 1, assignments['seam_every_x_pxl'])
+
 
 if __name__ == '__main__':
     # Real Token

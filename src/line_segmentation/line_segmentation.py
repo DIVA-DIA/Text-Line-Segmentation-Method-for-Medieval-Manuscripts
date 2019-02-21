@@ -17,13 +17,12 @@ from src.line_segmentation.utils.graph_util import createTINgraph, print_graph_o
 from src.line_segmentation.utils.util import create_folder_structure, save_img
 from src.line_segmentation.preprocessing.load_image import prepare_image, load_image
 import src.line_segmentation.preprocessing.energy_map
-# import create_heat_map_visualization, prepare_energy, create_energy_map
 
 
 #######################################################################################################################
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of_iterations=1, seam_every_x_pxl=5,
+def extract_textline(input_loc, output_loc, show_seams=True, penalty_reduction=3000, nb_of_iterations=1, seam_every_x_pxl=5,
                      nb_of_lives=-1, too_small_pc=0.3, testing=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
@@ -36,7 +35,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
     # -------------------------------
 
     # creating the folders and getting the new root folder
-    root_output_path = create_folder_structure(input_loc, output_loc, (penalty, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
+    root_output_path = create_folder_structure(input_loc, output_loc, (penalty_reduction, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
 
     # inits the logger with the logging path
     init_logger(root_output_path)
@@ -52,7 +51,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
     #############################################
 
     # blow up image with the help of seams
-    img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty, show_seams,
+    img, connected_components, last_seams = separate_textlines(img, root_output_path, penalty_reduction, show_seams,
                                                                testing, seam_every_x_pxl)
 
     nb_polygons = get_polygons(img, root_output_path, connected_components, last_seams, nb_of_lives, too_small_pc)
@@ -84,7 +83,7 @@ def init_logger(root_output_path):
 #######################################################################################################################
 
 
-def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam_every_x_pxl):
+def separate_textlines(img, root_output_path, penalty_reduction, show_seams, testing, seam_every_x_pxl):
     """
     Contains the main loop. In each iteration it creates an energy map based on the given image CC and
     blows it up.
@@ -117,7 +116,7 @@ def separate_textlines(img, root_output_path, penalty, show_seams, testing, seam
     for seam_at in range(0, img.shape[0], seam_every_x_pxl):
         energy_map = src.line_segmentation.preprocessing.energy_map.prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty, bidirectional=True)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
         seams.append(seam)
         if show_seams:
             draw_seam(heatmap, seam)
@@ -282,11 +281,11 @@ if __name__ == "__main__":
     #                  output_loc='../../output',
     #                  seam_every_x_pxl=5,
     #                  nb_of_lives=0,
-    #                  penalty=6000,
+    #                  penalty_reduction=6000,
     #                  testing=True)
     extract_textline(input_loc='./../data/test/e-codices_fmb-cb-0055_0019r_max_output.png',
                      output_loc='./../../output',
                      seam_every_x_pxl=90,
-                     penalty=5000,
+                     penalty_reduction=5000,
                      testing=False)
     logging.info('Terminated')
