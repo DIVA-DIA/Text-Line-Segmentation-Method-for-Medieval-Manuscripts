@@ -15,7 +15,7 @@ from src.line_segmentation.utils.XMLhandler import writePAGEfile
 from src.line_segmentation.utils.graph_logger import GraphLogger
 from src.line_segmentation.utils.graph_util import createTINgraph, print_graph_on_img
 from src.line_segmentation.utils.util import create_folder_structure, save_img
-from src.line_segmentation.preprocessing.load_image import prepare_image
+from src.line_segmentation.preprocessing.load_image import prepare_image, load_image
 import src.line_segmentation.preprocessing.energy_map
 # import create_heat_map_visualization, prepare_energy, create_energy_map
 
@@ -43,7 +43,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty=3000, nb_of
 
     #############################################
     # Load the image
-    img = cv2.imread(input_loc)
+    img = load_image(input_loc)
 
     #############################################
     # init the graph logger

@@ -1,7 +1,18 @@
+import errno
+
+import cv2
 import logging
+import os
 import time
 
 import numpy as np
+
+
+def load_image(path):
+    if not os.path.exists(path):
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+
+    return cv2.imread(path)
 
 
 def prepare_image(img, testing, cropping=True):
