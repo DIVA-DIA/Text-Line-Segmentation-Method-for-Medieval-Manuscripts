@@ -74,7 +74,10 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
 @numba.jit()
 def draw_seam(img, seam, show=False):
-    cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
+    # get the seam from the left [0] and the seam from the right[1]
+    split_seams = np.split(np.asarray(seam), 2)
+    cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
+    cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
     if show:
         cv2.imshow('seam', img)
         cv2.waitKey(0)
