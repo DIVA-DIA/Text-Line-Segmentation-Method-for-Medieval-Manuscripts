@@ -46,7 +46,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
     print("Starting: {} with {}".format(input_img, param_string))
     # Run the tool
     try:
-        predicted_nb_lines = extract_textline(input_img, output_path, **param_list)
+        extract_textline(input_img, output_path, **param_list)
         print("Done: {} with {}".format(input_img, param_string))
     except:
         # for debugging
