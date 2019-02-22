@@ -4,6 +4,8 @@ import time
 import numpy as np
 from scipy.spatial import distance
 
+from src.line_segmentation.utils.util import calculate_asymmetric_distance
+
 
 def majority_voting(centroids, seams):
     """
@@ -60,8 +62,11 @@ def majority_voting(centroids, seams):
 
                 # compute distances to neighbors with the EUC distance
                 XA = np.expand_dims(centroids[loc], axis=0)
-                upper = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_p])], 'euclidean').min()
-                lower = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_m])], 'euclidean').min()
+
+                upper = np.array([calculate_asymmetric_distance(XA, c, 1, 10) for c in centroids[np.where(bin_index == bin_index[loc_p])]]).min()
+                lower = np.array([calculate_asymmetric_distance(XA, c, 1, 10) for c in centroids[np.where(bin_index == bin_index[loc_m])]]).min()
+                #upper = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_p])], 'euclidean').min()
+                #lower = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_m])], 'euclidean').min()
 
                 # -------------------------------------
                 # COMMENTED but kept for legacy reasons
@@ -86,3 +91,5 @@ def majority_voting(centroids, seams):
     # -------------------------------
 
     return lines
+
+

@@ -1,6 +1,8 @@
 import cv2
 import os
 
+import numpy as np
+
 
 def create_folder_structure(input_file, output_path, params):
     """
@@ -40,3 +42,7 @@ def save_img(img, path='experiment.png', show=True):
 
     # save the image at the given path
     cv2.imwrite(path, img)
+
+
+def calculate_asymmetric_distance(x, y, h_weight=1, v_weight=5):
+    return [np.sqrt(((y[0] - x[0][0]) ** 2) * v_weight + ((y[1] - x[0][1]) ** 2) * h_weight)]

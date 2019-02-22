@@ -22,8 +22,8 @@ import src.line_segmentation.preprocessing.energy_map
 #######################################################################################################################
 
 
-def extract_textline(input_loc, output_loc, show_seams=True, penalty_reduction=3000, nb_of_iterations=1, seam_every_x_pxl=5,
-                     nb_of_lives=-1, too_small_pc=0.3, testing=False):
+def extract_textline(input_loc, output_loc, show_seams=True, penalty_reduction=3000, seam_every_x_pxl=5,
+                     nb_of_lives=-1, too_small_pc=0.3, testing=False, **kwargs):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     """
@@ -35,7 +35,7 @@ def extract_textline(input_loc, output_loc, show_seams=True, penalty_reduction=3
     # -------------------------------
 
     # creating the folders and getting the new root folder
-    root_output_path = create_folder_structure(input_loc, output_loc, (penalty_reduction, nb_of_iterations, seam_every_x_pxl, nb_of_lives))
+    root_output_path = create_folder_structure(input_loc, output_loc, (penalty_reduction, seam_every_x_pxl))
 
     # inits the logger with the logging path
     init_logger(root_output_path)
@@ -116,7 +116,7 @@ def separate_textlines(img, root_output_path, penalty_reduction, show_seams, tes
     for seam_at in range(0, img.shape[0], seam_every_x_pxl):
         energy_map = src.line_segmentation.preprocessing.energy_map.prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=False)
         seams.append(seam)
         if show_seams:
             draw_seam(heatmap, seam)
@@ -208,38 +208,6 @@ def get_polygons(img, root_output_path, connected_components, last_seams, nb_of_
     return nb_line
 
 
-def cut_img(img, cc_props):
-    # -------------------------------
-    start = time.time()
-    # -------------------------------
-
-    avg_area = np.mean([item.area for item in cc_props])
-    avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_props])
-    avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_props])
-    for item in cc_props:
-        if item.area > 2.8 * avg_area or item.bbox[2] - item.bbox[0] > 2.8 * avg_height or item.bbox[3] - item.bbox[
-            1] > 2.8 * avg_width:
-            v_size = abs(item.bbox[0] - item.bbox[2])
-            h_size = abs(item.bbox[1] - item.bbox[3])
-            y1, x1, y2, x2 = item.bbox
-
-            if float(h_size) / v_size > 1.5:
-                img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
-            elif float(v_size) / h_size > 1.5:
-                img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
-            else:
-                # img[np.round((y1 + y2) / 2).astype(int), np.round((x1 + x2) / 2).astype(int)] = 0
-                img[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
-                img[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
-
-    # -------------------------------
-    stop = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop - start))
-    # -------------------------------
-
-    return img
-
-
 def find_cc_from_centroid(c, cc_properties):
 #   c[0], c[1] = c[1], c[0]
     for cc in cc_properties:
@@ -283,8 +251,8 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty_reduction=6000,
     #                  testing=True)
-    extract_textline(input_loc='./../data/test/e-codices_fmb-cb-0055_0019r_max_output.png',
-                     output_loc='./../../output',
+    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0122v_max_output.png',
+                     output_loc='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,
                      testing=False)

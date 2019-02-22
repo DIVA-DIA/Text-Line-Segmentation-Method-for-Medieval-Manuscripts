@@ -8,6 +8,7 @@ from scipy.spatial import distance
 
 import src.line_segmentation.line_segmentation
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
+from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -48,20 +49,21 @@ def prepare_energy(ori_map, left_column, right_column, y):
     return ori_map
 
 
-def detect_outliers(area):
+def detect_outliers(area, mean, std):
     # -------------------------------
     start = time.time()
     # -------------------------------
+    #mean = np.mean(area)
+    #std = np.std(area)
 
-    too_big = abs(area + np.mean(area)) < 5 * np.std(area)
-    too_small = abs(area - np.mean(area)) < 5 * np.std(area)
+    no_outliers = abs(area - mean) < 3 * std
+    big_enough = area > (0.5 * mean)
 
-    # too_big = area > (0.4 * np.mean(area))
-    # too_small = area < 3 * np.mean(area)
-    # too_small = area > 0
+    # small_enough = area < 3 * np.mean(area)
+    # small_enough = area > 0
     # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
 
-    no_outliers = [x & y for (x, y) in zip(too_big, too_small)]
+    no_outliers = [x & y for x, y in zip(big_enough, no_outliers)]
 
     # -------------------------------
     stop = time.time()
@@ -69,10 +71,6 @@ def detect_outliers(area):
     # -------------------------------
 
     return no_outliers
-
-
-def calculate_asymmetric_distance(x, y, h_weight=1, v_weight=5):
-    return [np.sqrt(((y[0] - x[0][0]) ** 2) * v_weight + ((y[1] - x[0][1]) ** 2) * h_weight)]
 
 
 def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1000):
@@ -221,12 +219,36 @@ def find_cc_centroids_areas(img):
 
     amount_of_properties = 0
 
+    # Compute average metrics
+    avg_area = np.mean([item.area for item in cc_properties])
+    std_area = np.std([item.area for item in cc_properties])
+    avg_height = np.mean([item.bbox[2] - item.bbox[0] for item in cc_properties])
+    avg_width = np.mean([item.bbox[3] - item.bbox[1] for item in cc_properties])
+
     while amount_of_properties != len(cc_properties):
         # for _ in range(2):
         amount_of_properties = len(cc_properties)
+        image = img[:, :, 1]
         #############################################
         # Cut all large components into smaller components
-        img[:, :, 1] = src.line_segmentation.line_segmentation.cut_img(img[:, :, 1], cc_properties)
+        for item in cc_properties:
+            if item.area > 2.8 * avg_area \
+                    or item.bbox[2] - item.bbox[0] > 2.8 * avg_height \
+                    or item.bbox[3] - item.bbox[1] > 2.8 * avg_width:
+                v_size = abs(item.bbox[0] - item.bbox[2])
+                h_size = abs(item.bbox[1] - item.bbox[3])
+                y1, x1, y2, x2 = item.bbox
+
+                if float(h_size) / v_size > 1.5:
+                    image[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
+                elif float(v_size) / h_size > 1.5:
+                    image[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
+                else:
+                    # img[np.round((y1 + y2) / 2).astype(int), np.round((x1 + x2) / 2).astype(int)] = 0
+                    image[y1:y2, np.round((x1 + x2) / 2).astype(int)] = 0
+                    image[np.round((y1 + y2) / 2).astype(int), x1:x2] = 0
+
+        img[:, :, 1] = image
 
         # Re-find CC
         cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
@@ -240,7 +262,7 @@ def find_cc_centroids_areas(img):
     all_areas = np.asarray([cc.area for cc in cc_properties])
 
     # Discard outliers & sort
-    no_outliers = detect_outliers(all_areas)
+    no_outliers = detect_outliers(all_areas, avg_area, std_area)
     centroids = all_centroids[no_outliers, :]
     filtered_area = all_areas[no_outliers]
     all_areas = filtered_area[np.argsort(centroids[:, 0])]
@@ -260,3 +282,5 @@ def find_cc_centroids_areas(img):
     # -------------------------------
 
     return (cc_labels, cc_properties), all_centroids, all_areas
+
+
