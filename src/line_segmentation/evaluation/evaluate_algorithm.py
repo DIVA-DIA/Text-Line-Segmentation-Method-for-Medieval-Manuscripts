@@ -49,12 +49,9 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
         predicted_nb_lines = extract_textline(input_img, output_path, **param_list)
         print("Done: {} with {}".format(input_img, param_string))
     except:
-        # ford debugging
+        # for debugging
         print("Failed for some reason")
         return [None, traceback.format_exc(), param_list]
-
-    if predicted_nb_lines <= 5:
-        return [0.0, [], param_list]
 
     # Run the JAR
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
@@ -95,11 +92,9 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
 
     # Create output path for run
     tic = time.time()
-    current_time = time.strftime('%Y.%m.%d-%H.%M.%S', time.localtime())
-    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}_t_{}'.format(
+    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}'.format(
         penalty_reduction,
-        seam_every_x_pxl,
-        current_time))
+        seam_every_x_pxl))
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
@@ -107,8 +102,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Debugging purposes only!
     # input_images = [input_images[4]]
     # input_xml = [input_xml[4]]
-    input_images = [input_images[0]]
-    input_xml = [input_xml[0]]
+    #input_images = [input_images[0]]
+    #input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
