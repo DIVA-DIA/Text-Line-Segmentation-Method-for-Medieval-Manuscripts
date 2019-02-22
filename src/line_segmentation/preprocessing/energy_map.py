@@ -53,11 +53,13 @@ def detect_outliers(area, mean, std):
     # -------------------------------
     start = time.time()
     # -------------------------------
-    #mean = np.mean(area)
-    #std = np.std(area)
+    if mean is not None:
+        mean = np.mean(area)
+    if std is not None:
+        std = np.std(area)
 
     no_outliers = abs(area - mean) < 3 * std
-    big_enough = area > (0.5 * mean)
+    big_enough = area > (0.0 * mean)
 
     # small_enough = area < 3 * np.mean(area)
     # small_enough = area > 0
@@ -267,14 +269,6 @@ def find_cc_centroids_areas(img):
     filtered_area = all_areas[no_outliers]
     all_areas = filtered_area[np.argsort(centroids[:, 0])]
     all_centroids = centroids[np.argsort(centroids[:, 0]), :]
-
-    # discard outliers
-    # big_enough = all_areas > 0.4 * np.mean(all_areas)
-    # small_enough = all_areas > 0
-    # no_outliers = [x & y for (x, y) in zip(big_enough, small_enough)]
-    # all_centroids = all_centroids[no_outliers, :]
-    #
-    # all_areas = all_areas[no_outliers]
 
     # -------------------------------
     stop = time.time()
