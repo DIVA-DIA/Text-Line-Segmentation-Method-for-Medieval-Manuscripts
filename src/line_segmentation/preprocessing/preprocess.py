@@ -1,15 +1,11 @@
-import sys
+import logging
+import os
+import time
 
 import cv2
-import logging
-import time
 import matplotlib
-from scipy import signal
 from skimage import measure
 
-import src
-from src.line_segmentation.line_segmentation import get_connected_components
-from src.line_segmentation.preprocessing.energy_map import find_cc_centroids_areas
 from src.line_segmentation.utils.util import save_img
 
 matplotlib.use('Agg')
@@ -56,14 +52,12 @@ def wipe_outside_textarea(image):
     image = cv2.filter2D(image, -1, kernel)
 
     # GET BIGGEST COMPONENT #############################################################
-    # Find CC
-    cc_labels, cc_properties = get_connected_components(image)
-
-
-
     # Get contour points of the binary polygon image
+    tmp = np.zeros((660, 512, 1), dtype=np.uint8)
     cc = measure.find_contours(image, 254, fully_connected='high')[0]
-
+    cc = [cc.astype(np.int32, copy=False)]
+    cv2.fillPoly(tmp, cc, 255)
+    save_img(tmp, path=os.path.join('./output', 'test.png'), show=False)
 
     # take the biggest polygon
   #  contour = polygon_coords[nb_line][0]
