@@ -10,6 +10,7 @@ from skimage import measure
 
 from src.line_segmentation.bin_algorithm import majority_voting
 from src.line_segmentation.polygon_manager import polygon_to_string
+from src.line_segmentation.preprocessing.preprocess import preprocess
 from src.line_segmentation.seamcarving_algorithm import horizontal_seam, draw_seam
 from src.line_segmentation.utils.XMLhandler import writePAGEfile
 from src.line_segmentation.utils.graph_logger import GraphLogger
@@ -95,6 +96,11 @@ def separate_textlines(img, root_output_path, penalty_reduction, show_seams, tes
 
     # Prepare image (filter only text, ...)
     img = prepare_image(img, testing=testing, cropping=False)
+
+    # Pre-process the image
+    save_img(img, path=os.path.join(root_output_path, 'preprocess', 'original.png'), show=False)
+    img = preprocess(img)
+    save_img(img, path=os.path.join(root_output_path, 'preprocess', 'after_preprocessing.png'), show=False)
 
     # create the energy map
     ori_energy_map, cc = src.line_segmentation.preprocessing.energy_map.create_energy_map(img, blurring=False, projection=True, asymmetric=False)
@@ -251,7 +257,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty_reduction=6000,
     #                  testing=True)
-    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0122v_max_output.png',
+    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0032r_max_output.png',
                      output_loc='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,

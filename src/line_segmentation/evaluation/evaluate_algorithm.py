@@ -28,13 +28,13 @@ def get_file_list(dir, extension_list):
     return list
 
 
-def get_score(logs):
+def get_score(logs, token):
     for line in logs:
         line = str(line)
-        if "line IU =" in line:
-            line_ui = line.split('=')[1][0:8]
-            line_ui = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", line_ui)
-            return float(line_ui[0])
+        if token in line:
+            split = line.split('=')[1][0:8]
+            split = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?", split)
+            return float(split[0])
     return None
 
 
@@ -53,9 +53,18 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
         print("Failed for some reason")
         return [None, traceback.format_exc(), param_list]
 
-    # Run the JAR
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
 
+    # Run the JAR for PIXEL SEGMENTATION ################################################
+    # print("Starting: (pixel) JAR {}".format(input_img))
+    # p = Popen(['java', '-jar', eval_tool,
+    #            '-p', input_img,
+    #            '-gt', input_gt,
+    #            '-dv'],
+    #           stdout=PIPE, stderr=STDOUT)
+    # print("Done: (pixel) JAR {} score={}".format(input_img,get_score([line for line in p.stdout], "Mean IU (Jaccard index) =")))
+
+    # Run the JAR for LINE SEGMENTATION ################################################
     # Check where is the path - Debugging only
     # p = Popen(['ls'], stdout=PIPE, stderr=STDOUT)
     # logs = [line for line in p.stdout]
@@ -68,7 +77,7 @@ def compute_for_all(input_img, input_xml, output_path, param_list, eval_tool):
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]
     print("Done: JAR {} with {}".format(input_img, param_string))
-    return [get_score(logs), logs, param_list]
+    return [get_score(logs, "line IU ="), logs, param_list]
 
 
 def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
@@ -102,8 +111,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Debugging purposes only!
     # input_images = [input_images[4]]
     # input_xml = [input_xml[4]]
-    #input_images = [input_images[0]]
-    #input_xml = [input_xml[0]]
+    input_images = [input_images[0]]
+    input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 

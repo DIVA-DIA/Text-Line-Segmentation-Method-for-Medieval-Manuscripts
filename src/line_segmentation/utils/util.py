@@ -30,6 +30,8 @@ def create_folder_structure(input_file, output_path, params):
         os.mkdir(os.path.join(basefolder_path, 'energy_map'))
         # create histo folder
         os.mkdir(os.path.join(basefolder_path, 'logs'))
+        # create preprocess folder
+        os.mkdir(os.path.join(basefolder_path, 'preprocess'))
 
     return basefolder_path
 
