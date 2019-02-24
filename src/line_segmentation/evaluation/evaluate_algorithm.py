@@ -111,8 +111,8 @@ def evaluate(input_folders_pxl, input_folders_xml, output_path, j, eval_tool,
     # Debugging purposes only!
     # input_images = [input_images[4]]
     # input_xml = [input_xml[4]]
-    input_images = [input_images[0]]
-    input_xml = [input_xml[0]]
+    # input_images = [input_images[0]]
+    # input_xml = [input_xml[0]]
     # input_images = input_images[0:3]
     # input_xml = input_xml[0:3]
 
