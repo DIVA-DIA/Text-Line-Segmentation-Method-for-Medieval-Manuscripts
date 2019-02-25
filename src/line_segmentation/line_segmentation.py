@@ -223,12 +223,6 @@ def find_cc_from_centroid(c, cc_properties):
     return None
 
 
-def get_connected_components(img):
-    cc_labels = measure.label(img[:, :, 1], background=0)
-    cc_properties = measure.regionprops(cc_labels, cache=True)
-    return cc_labels, cc_properties
-
-
 #######################################################################################################################
 
 if __name__ == "__main__":
@@ -257,7 +251,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty_reduction=6000,
     #                  testing=True)
-    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0032r_max_output.png',
+    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0132v_max_output.png',
                      output_loc='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,
