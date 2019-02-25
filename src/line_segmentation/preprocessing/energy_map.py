@@ -5,8 +5,8 @@ import time
 import cv2
 import numpy as np
 from scipy.spatial import distance
+from skimage import measure
 
-import src.line_segmentation.line_segmentation
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
@@ -47,33 +47,6 @@ def prepare_energy(ori_map, left_column, right_column, y):
     ori_map[y][0], ori_map[y][-1] = y_value_left, y_value_right
 
     return ori_map
-
-
-def detect_outliers(area, mean, std):
-    # -------------------------------
-    start = time.time()
-    # -------------------------------
-    if mean is not None:
-        mean = np.mean(area)
-    if std is not None:
-        std = np.std(area)
-
-    no_outliers = abs(area - mean) < 3 * std
-    big_enough = area > (0.0 * mean)
-
-    # small_enough = area < 3 * np.mean(area)
-    # small_enough = area > 0
-    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
-
-    no_outliers = [x & y for x, y in zip(big_enough, no_outliers)]
-
-    # -------------------------------
-    stop = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop - start))
-    # -------------------------------
-
-    return no_outliers
-
 
 def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1000):
     # -------------------------------
@@ -217,7 +190,7 @@ def find_cc_centroids_areas(img):
     # -------------------------------
     #############################################
     # Find CC
-    cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
+    cc_labels, cc_properties = get_connected_components(img)
 
     amount_of_properties = 0
 
@@ -233,10 +206,11 @@ def find_cc_centroids_areas(img):
         image = img[:, :, 1]
         #############################################
         # Cut all large components into smaller components
+        coef = 1.5
         for item in cc_properties:
-            if item.area > 2.8 * avg_area \
-                    or item.bbox[2] - item.bbox[0] > 2.8 * avg_height \
-                    or item.bbox[3] - item.bbox[1] > 2.8 * avg_width:
+            if item.area > coef * avg_area \
+                    or item.bbox[2] - item.bbox[0] > coef * avg_height \
+                    or item.bbox[3] - item.bbox[1] > coef * avg_width:
                 v_size = abs(item.bbox[0] - item.bbox[2])
                 h_size = abs(item.bbox[1] - item.bbox[3])
                 y1, x1, y2, x2 = item.bbox
@@ -253,7 +227,7 @@ def find_cc_centroids_areas(img):
         img[:, :, 1] = image
 
         # Re-find CC
-        cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
+        cc_labels, cc_properties = get_connected_components(img)
         #############################################
 
     # Collect CC centroids
@@ -278,3 +252,30 @@ def find_cc_centroids_areas(img):
     return (cc_labels, cc_properties), all_centroids, all_areas
 
 
+def get_connected_components(img):
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    return cc_labels, cc_properties
+
+
+def detect_outliers(area, mean, std):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+    if mean is not None:
+        mean = np.mean(area)
+    if std is not None:
+        std = np.std(area)
+
+    no_outliers = abs(area - mean) < 5 * std
+
+    # small_enough = area < 3 * np.mean(area)
+    # small_enough = area > 0
+    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
+    return no_outliers
