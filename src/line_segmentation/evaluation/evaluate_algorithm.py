@@ -59,8 +59,8 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
     # Run the JAR for PIXEL SEGMENTATION ################################################
     # print("Starting: (pixel) JAR {}".format(input_img))
     # apply_preprocess(input_image_path=input_img,
-    #                  text_mask_path=os.path.join(output_path, line_extraction_root_folder, 'preprocess/after_preprocessing.png'),
-    #                  output_path=os.path.join(output_path, 'postprocessd'))
+    #                   text_mask_path=os.path.join(output_path, line_extraction_root_folder, 'preprocess/after_preprocessing.png'),
+    #                   output_path=os.path.join(output_path, 'postprocessd'))
     # p = Popen(['java', '-jar', './src/pixel_segmentation/evaluation/LayoutAnalysisEvaluator.jar',
     #            '-p', os.path.join(output_path, 'postprocessd', input_img.split('/')[-1]),
     #            '-gt', gt_pxl,
