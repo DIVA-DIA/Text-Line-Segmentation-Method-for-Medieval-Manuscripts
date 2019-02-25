@@ -122,7 +122,7 @@ def separate_textlines(img, root_output_path, penalty_reduction, show_seams, tes
     for seam_at in range(0, img.shape[0], seam_every_x_pxl):
         energy_map = src.line_segmentation.preprocessing.energy_map.prepare_energy(ori_energy_map, left_column_energy_map, right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=False)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
         seams.append(seam)
         if show_seams:
             draw_seam(heatmap, seam)
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty_reduction=6000,
     #                  testing=True)
-    extract_textline(input_loc='./src/data/e-codices_fmb-cb-0055_0132v_max_output.png',
+    extract_textline(input_loc='./src/data/e-codices_csg-0018_095_max_output.png',
                      output_loc='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,

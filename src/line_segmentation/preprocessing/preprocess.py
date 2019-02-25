@@ -1,11 +1,18 @@
 import logging
+import os
+import sys
 import time
 
 import cv2
-import matplotlib
 from skimage import measure
 
+import matplotlib
+
+from src.line_segmentation.utils.util import save_img
+
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 import numpy as np
 
 def preprocess(image):
@@ -18,6 +25,9 @@ def preprocess(image):
 
     # Remove components which are too small in terms of area
     image = remove_small_components(image)
+
+    # Remove components which are too big in terms of area -> after removing the small ones!
+    image = remove_big_components(image)
 
     # -------------------------------
     stop = time.time()
@@ -35,10 +45,12 @@ def wipe_outside_textarea(image):
     image = image[:, :, 1]
 
     # SMOOTH IMAGE ######################################################################
-    filter_size = 128
-    kernel = np.ones((filter_size, filter_size)) / filter_size
+    filter_size_H = 64
+    filter_size_V = 192
+    kernel = np.ones((filter_size_V, filter_size_H)) / filter_size_H
     # Apply averaging filter
     image = cv2.filter2D(image, -1, kernel)
+    #SMOOTH_IMAGE = image
     # Draw a vertical line in the middle of the image to prevent 2 paragraphs to be split
     image[5:-5, int(image.shape[1] / 2) - 5:int(image.shape[1] / 2) + 5] = 255
 
@@ -67,7 +79,7 @@ def wipe_outside_textarea(image):
     """
     # FILTER WITH VERTICAL PROJECTION PROFILE ###########################################
     # Compute projection profile
-    ver = np.sum(image, axis=0)
+    ver = np.sum(SMOOTH_IMAGE, axis=0)
     # Get all values above average
     ver_indexes = np.where(ver > np.mean(ver))
     # Find the first and last of them
@@ -75,8 +87,8 @@ def wipe_outside_textarea(image):
     right = np.max(ver_indexes)
 
     # Wipe the image on left/right sides
-    # image[:, 0:left] = 0
-    # image[:, right:] = 0
+    image[:, 0:left] = 0
+    image[:, right:] = 0
 
     plt.figure()
     plt.plot(ver)
@@ -87,7 +99,7 @@ def wipe_outside_textarea(image):
 
     # FILTER WITH VERTICAL PROJECTION PROFILE ###########################################
     # Compute projection profile
-    hor = np.sum(image, axis=1)
+    hor = np.sum(SMOOTH_IMAGE, axis=1)
     # Get all values above average
     hor_indexes = np.where(hor > np.mean(hor))
     # Find the first and last of them
@@ -95,8 +107,8 @@ def wipe_outside_textarea(image):
     bottom = np.max(hor_indexes)
 
     # Wipe the image on top/bottom sides
-    # image[0:top, :] = 0
-    # image[bottom:, :] = 0
+    image[0:top, :] = 0
+    image[bottom:, :] = 0
 
     plt.figure()
     plt.plot(hor)
@@ -109,7 +121,6 @@ def wipe_outside_textarea(image):
 
 
 def remove_small_components(image):
-
     # Find CC
     cc_properties = measure.regionprops(measure.label(image[:, :, 1], background=0), cache=True)
 
@@ -121,5 +132,19 @@ def remove_small_components(image):
         if cc.area < 0.1 * avg_area:
             # Wipe the cc
             image[(cc.coords[:, 0], cc.coords[:, 1])] = 0
+    return image
 
+
+def remove_big_components(image):
+    # Find CC
+    cc_properties = measure.regionprops(measure.label(image[:, :, 1], background=0), cache=True)
+
+    # Compute average metrics
+    avg_area = np.mean([item.area for item in cc_properties])
+
+    # Remove all small components
+    for cc in cc_properties:
+        if cc.area > 10 * avg_area:
+            # Wipe the cc
+            image[(cc.coords[:, 0], cc.coords[:, 1])] = 0
     return image

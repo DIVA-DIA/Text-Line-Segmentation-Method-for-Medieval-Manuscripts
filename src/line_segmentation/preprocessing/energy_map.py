@@ -157,8 +157,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     if projection:
         projection_profile = create_projection_profile(energy_map)
         # normalize it between 0-1
-        projection_profile = (projection_profile - np.min(projection_profile)) / (
-                np.max(projection_profile) - np.min(projection_profile))
+        projection_profile = (projection_profile - np.min(projection_profile)) / (np.max(projection_profile) - np.min(projection_profile))
         # scale it between 0 and max(energy_map) / 2
         projection_profile *= np.max(energy_map) / 2
 
