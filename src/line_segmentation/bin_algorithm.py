@@ -7,13 +7,17 @@ from scipy.spatial import distance
 from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
 
-def majority_voting(centroids, seams):
+def majority_voting(connected_components, seams):
     """
     Splits the centroids into bins according to how many seams cross them
     """
     # -------------------------------
     start = time.time()
     # -------------------------------
+
+    # Get the centroids and sort them
+    centroids = np.asarray([cc.centroid[0:2] for cc in connected_components[1]])
+    centroids = centroids[np.argsort(centroids[:, 0]), :]
 
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
     seams = np.array([np.array(s)[:, 1] for s in seams])

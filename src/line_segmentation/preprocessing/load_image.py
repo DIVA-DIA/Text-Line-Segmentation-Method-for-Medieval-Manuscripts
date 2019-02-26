@@ -18,7 +18,7 @@ def load_image(path):
 
     return img
 
-def prepare_image(img, testing, cropping=True):
+def prepare_image(img, testing, cropping=True, vertical=False):
     # -------------------------------
     start = time.time()
     # -------------------------------
@@ -47,6 +47,10 @@ def prepare_image(img, testing, cropping=True):
         # Set the text to be white
         img[locations_text[0], locations_text[1]] = 255
         img[locations_text_comment[0], locations_text_comment[1]] = 255
+
+    # Rotate 90 degrees to the left the image (for vertical scripts such as Chinese)
+    if vertical:
+        img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
     # -------------------------------
     stop = time.time()

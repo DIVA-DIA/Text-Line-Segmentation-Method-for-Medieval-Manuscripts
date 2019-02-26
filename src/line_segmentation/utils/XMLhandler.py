@@ -6,7 +6,7 @@ import xml.etree.cElementTree as ET
 import numpy as np
 
 
-def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baselines=None):
+def writePAGEfile(output_path, text_lines="", text_region_coords="not provided", baselines=None):
     # Create root element and add the attributes
     root = ET.Element("PcGts")
     root.set("xmls", "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15")
@@ -28,10 +28,10 @@ def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baseli
     textRegion.set("custom", "0")
 
     # Add Coords
-    ET.SubElement(textRegion, "Coords", points=textRegionCoords)
+    ET.SubElement(textRegion, "Coords", points=text_region_coords)
 
     # Add TextLine
-    for i, line in enumerate(textLines):
+    for i, line in enumerate(text_lines):
         textLine = ET.SubElement(textRegion, "TextLine", id="textline_{}".format(i), custom="0")
         ET.SubElement(textLine, "Coords", points=line)
         if baselines:
@@ -48,7 +48,7 @@ def writePAGEfile(outpath, textLines="", textRegionCoords="not provided", baseli
     #print(prettify(root))
 
     # Save on file
-    file = open(outpath, "w")
+    file = open(output_path, "w")
     file.write(prettify(root))
     file.close()
 
