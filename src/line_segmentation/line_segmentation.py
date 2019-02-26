@@ -16,7 +16,8 @@ from src.line_segmentation.utils.util import create_folder_structure, save_img
 
 #######################################################################################################################
 
-def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every_x_pxl=5, testing=False, vertical=False):
+def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every_x_pxl=5,
+                     testing=False, vertical=False, console_log=False):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     """
@@ -34,7 +35,7 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
     root_output_path = create_folder_structure(input_path, output_path, (penalty_reduction, seam_every_x_pxl))
 
     # Init the logger with the logging path
-    init_logger(root_output_path)
+    init_logger(root_output_path, console_log)
 
     # Init the graph logger
     GraphLogger.IMG_SHAPE = img.shape
@@ -71,9 +72,9 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
 
     ###############################################################################################
     # Get polygons from lines
-    polygons = get_polygons_from_lines(img, lines, connected_components)
+    polygons = get_polygons_from_lines(img, lines, connected_components, vertical)
     # Draw polygons overlay on original image
-    save_img(draw_polygons(img.copy(), polygons), path=os.path.join(root_output_path, 'polygons_on_text.png'))
+    save_img(draw_polygons(img.copy(), polygons, vertical), path=os.path.join(root_output_path, 'polygons_on_text.png'))
 
     ###############################################################################################
     # Write the results on the XML file
@@ -89,7 +90,7 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
 
 
 #######################################################################################################################
-def init_logger(root_output_path):
+def init_logger(root_output_path, console_log):
     # create a logging format
     formatter = logging.Formatter(fmt='%(asctime)s %(filename)s:%(funcName)s %(levelname)-8s %(message)s',
                                   datefmt='%Y-%m-%d %H:%M:%S')
@@ -101,10 +102,11 @@ def init_logger(root_output_path):
     handler.setLevel(logging.INFO)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-    # create and add stderr handler
-    stderr_handler = logging.StreamHandler()
-    stderr_handler.formatter = formatter
-    logger.addHandler(stderr_handler)
+    if console_log:
+        # create and add stderr handler
+        stderr_handler = logging.StreamHandler()
+        stderr_handler.formatter = formatter
+        logger.addHandler(stderr_handler)
 
 #######################################################################################################################
 if __name__ == "__main__":
@@ -114,6 +116,7 @@ if __name__ == "__main__":
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,
                      testing=False,
+                     console_log=True,
                      vertical=True)
 
     logging.info('Terminated')

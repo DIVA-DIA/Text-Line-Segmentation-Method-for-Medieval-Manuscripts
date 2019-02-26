@@ -13,6 +13,7 @@ from src.line_segmentation.evaluation.overall_score import write_stats
 from src.line_segmentation.line_segmentation import extract_textline
 from src.pixel_segmentation.evaluation.apply_postprocess import apply_preprocess
 
+VERTICAL = False
 
 def check_extension(filename, extension_list):
     return any(filename.endswith(extension) for extension in extension_list)
@@ -43,16 +44,16 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
     param_string = "_penalty_reduction_{}_seams_{}".format(
         param_list['penalty_reduction'],
         param_list['seam_every_x_pxl'])
-
-    print("Starting: {} with {}".format(input_img, param_string))
-    # Run the tool
-    try:
-        extract_textline(input_img, output_path, **param_list)
-        print("Done: {} with {}".format(input_img, param_string))
-    except:
-        # for debugging
-        print("Failed for some reason")
-        return [None, traceback.format_exc(), param_list]
+    #
+    # print("Starting: {} with {}".format(input_img, param_string))
+    # # Run the tool
+    # try:
+    #     extract_textline(input_img, output_path, **param_list, vertical=VERTICAL)
+    #     print("Done: {} with {}".format(input_img, param_string))
+    # except:
+    #     # for debugging
+    #     print("Failed for some reason")
+    #     return [None, traceback.format_exc(), param_list]
 
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
 
@@ -160,7 +161,6 @@ if __name__ == "__main__":
     parser.add_argument('--input-folders-pxl', nargs='+', type=str,
                         required=True,
                         help='path to folders containing pixel-gt (e.g. /dataset/CB55/output-m /dataset/CSG18/output-m /dataset/CSG863/output-m)')
-
     parser.add_argument('--gt-folders-xml', nargs='+', type=str,
                         required=True,
                         help='path to folders containing xml-gt (e.g. /dataset/CB55/test-page /dataset/CSG18/test-page /dataset/CSG863/test-page)')
@@ -178,7 +178,10 @@ if __name__ == "__main__":
     parser.add_argument('--seam-every-x-pxl', type=int,
                         required=True,
                         help='how many pixels between the seams')
-
+    parser.add_argument('--vertical',
+                        default=False,
+                        action='store_true',
+                        help='assume text has vertical orientation (e.g. Chinese')
     # Environment
     parser.add_argument('--eval-tool', metavar='DIR',
                         default='./src/line_segmentation/evaluation/LineSegmentationEvaluator.jar',
@@ -187,5 +190,8 @@ if __name__ == "__main__":
                         default=0,
                         help='number of thread to use for parallel search. If set to 0 #cores will be used instead')
     args = parser.parse_args()
+
+    if args.vertical:
+        VERTICAL = True
 
     evaluate(**args.__dict__)

@@ -9,7 +9,7 @@ from skimage import measure
 from src.line_segmentation.utils.graph_util import createTINgraph, print_graph_on_img
 
 
-def get_polygons_from_lines(img, lines, connected_components):
+def get_polygons_from_lines(img, lines, connected_components, vertical):
 
     # Extract the contour of each CC
     polygon_coords = []
@@ -39,6 +39,9 @@ def get_polygons_from_lines(img, lines, connected_components):
         #     # add cc areas to the image
         #     cv2.fillPoly(polygon_img, cc_coord, color=(255, 255, 255))
 
+        if vertical:
+            polygon_img = cv2.rotate(polygon_img, cv2.ROTATE_90_CLOCKWISE)
+
         # get contour points of the binary polygon image
         polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high')[0])
 
@@ -54,7 +57,10 @@ def find_cc_from_centroid(c, cc_properties):
     return None
 
 
-def draw_polygons(image, polygons):
+def draw_polygons(image, polygons, vertical):
+    if vertical:
+        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+
     for polygon in polygons:
         cv2.polylines(image, np.array([[[np.int(p[1]), np.int(p[0])] for p in polygon]]), 1,
                       color=(248, 24, 148))
