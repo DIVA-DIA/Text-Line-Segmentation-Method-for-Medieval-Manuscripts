@@ -10,9 +10,6 @@ from skimage import measure
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 
 def create_heat_map_visualization(ori_energy_map):
     # -------------------------------
@@ -181,34 +178,14 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 def create_projection_profile(energy_map):
     # creating the horizontal projection profile
     pp = np.sum(energy_map, axis=1)
-
-    plt.figure()
-    plt.plot(pp)
-    plt.savefig('./output/original.png')
-
     # smoothing it
     WINDOW_SIZE = 100
     pp = smooth(pp, WINDOW_SIZE)[int(WINDOW_SIZE/2):-int(WINDOW_SIZE/2-1)]
-
-    plt.figure()
-    plt.plot(pp)
-    plt.savefig('./output/smoothed.png')
-
     # wipe everything below average
     pp -= np.mean(pp)
     pp[pp < 0] = 0
-
-    plt.figure()
-    plt.plot(pp)
-    plt.savefig('./output/wiped.png')
-
     # normalize it between 0-1
     pp = (pp - np.min(pp)) / (np.max(pp) - np.min(pp))
-
-    plt.figure()
-    plt.plot(pp)
-    plt.savefig('./output/normalized.png')
-
     return pp
 
 
