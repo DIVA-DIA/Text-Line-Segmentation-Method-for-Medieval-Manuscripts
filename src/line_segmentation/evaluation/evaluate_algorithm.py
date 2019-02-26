@@ -44,16 +44,16 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
     param_string = "_penalty_reduction_{}_seams_{}".format(
         param_list['penalty_reduction'],
         param_list['seam_every_x_pxl'])
-    #
-    # print("Starting: {} with {}".format(input_img, param_string))
-    # # Run the tool
-    # try:
-    #     extract_textline(input_img, output_path, **param_list, vertical=VERTICAL)
-    #     print("Done: {} with {}".format(input_img, param_string))
-    # except:
-    #     # for debugging
-    #     print("Failed for some reason")
-    #     return [None, traceback.format_exc(), param_list]
+
+    print("Starting: {} with {}".format(input_img, param_string))
+    # Run the tool
+    try:
+        extract_textline(input_img, output_path, **param_list, vertical=VERTICAL)
+        print("Done: {} with {}".format(input_img, param_string))
+    except:
+        # for debugging
+        print("Failed for some reason")
+        return [None, traceback.format_exc(), param_list]
 
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
 
