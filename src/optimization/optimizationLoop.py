@@ -3,14 +3,15 @@ from sigopt import Connection
 from src.line_segmentation.evaluation.evaluate_algorithm import evaluate
 
 INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-m", "/dataset/CSG863/output-m"]
-INPUT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
+GT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
+GT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/line_segmentation/evaluation/LineSegmentationEvaluator.jar"
 
 
 def evaluate_metric(assignments):
-    return evaluate(INPUT_FOLDERS_PXL, INPUT_FOLDERS_XML, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
+    return evaluate(INPUT_FOLDERS_PXL, GT_FOLDERS_XML, GT_FOLDERS_PXL, OUTPUT_FOLDER, NUM_CORES, EVAL_TOOL,
                     assignments['penalty_reduction'], assignments['seam_every_x_pxl'])
 
 
@@ -18,7 +19,7 @@ if __name__ == '__main__':
     # Real Token
     conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
