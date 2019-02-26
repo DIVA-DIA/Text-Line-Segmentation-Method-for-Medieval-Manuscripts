@@ -5,8 +5,8 @@ import time
 import cv2
 import numpy as np
 from scipy.spatial import distance
+from skimage import measure
 
-import src.line_segmentation.line_segmentation
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
@@ -47,31 +47,6 @@ def prepare_energy(ori_map, left_column, right_column, y):
     ori_map[y][0], ori_map[y][-1] = y_value_left, y_value_right
 
     return ori_map
-
-
-def detect_outliers(area, mean, std):
-    # -------------------------------
-    start = time.time()
-    # -------------------------------
-    #mean = np.mean(area)
-    #std = np.std(area)
-
-    no_outliers = abs(area - mean) < 3 * std
-    big_enough = area > (0.5 * mean)
-
-    # small_enough = area < 3 * np.mean(area)
-    # small_enough = area > 0
-    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
-
-    no_outliers = [x & y for x, y in zip(big_enough, no_outliers)]
-
-    # -------------------------------
-    stop = time.time()
-    logging.info("finished after: {diff} s".format(diff=stop - start))
-    # -------------------------------
-
-    return no_outliers
-
 
 def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1000):
     # -------------------------------
@@ -181,9 +156,6 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     if projection:
         projection_profile = create_projection_profile(energy_map)
-        # normalize it between 0-1
-        projection_profile = (projection_profile - np.min(projection_profile)) / (
-                np.max(projection_profile) - np.min(projection_profile))
         # scale it between 0 and max(energy_map) / 2
         projection_profile *= np.max(energy_map) / 2
 
@@ -205,8 +177,72 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
 def create_projection_profile(energy_map):
     # creating the horizontal projection profile
-    projection_profile = np.sum(energy_map, axis=1)
-    return projection_profile
+    pp = np.sum(energy_map, axis=1)
+    # smoothing it
+    WINDOW_SIZE = 100
+    pp = smooth(pp, WINDOW_SIZE)[int(WINDOW_SIZE/2):-int(WINDOW_SIZE/2-1)]
+    # wipe everything below average
+    pp -= np.mean(pp)
+    pp[pp < 0] = 0
+    # normalize it between 0-1
+    pp = (pp - np.min(pp)) / (np.max(pp) - np.min(pp))
+    return pp
+
+
+def smooth(x, window_len=11, window='hanning'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='valid')
+    return y
+
 
 
 def find_cc_centroids_areas(img):
@@ -215,7 +251,7 @@ def find_cc_centroids_areas(img):
     # -------------------------------
     #############################################
     # Find CC
-    cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
+    cc_labels, cc_properties = get_connected_components(img)
 
     amount_of_properties = 0
 
@@ -231,10 +267,11 @@ def find_cc_centroids_areas(img):
         image = img[:, :, 1]
         #############################################
         # Cut all large components into smaller components
+        coef = 1.5
         for item in cc_properties:
-            if item.area > 2.8 * avg_area \
-                    or item.bbox[2] - item.bbox[0] > 2.8 * avg_height \
-                    or item.bbox[3] - item.bbox[1] > 2.8 * avg_width:
+            if item.area > coef * avg_area \
+                    or item.bbox[2] - item.bbox[0] > coef * avg_height \
+                    or item.bbox[3] - item.bbox[1] > coef * avg_width:
                 v_size = abs(item.bbox[0] - item.bbox[2])
                 h_size = abs(item.bbox[1] - item.bbox[3])
                 y1, x1, y2, x2 = item.bbox
@@ -251,7 +288,7 @@ def find_cc_centroids_areas(img):
         img[:, :, 1] = image
 
         # Re-find CC
-        cc_labels, cc_properties = src.line_segmentation.line_segmentation.get_connected_components(img)
+        cc_labels, cc_properties = get_connected_components(img)
         #############################################
 
     # Collect CC centroids
@@ -268,14 +305,6 @@ def find_cc_centroids_areas(img):
     all_areas = filtered_area[np.argsort(centroids[:, 0])]
     all_centroids = centroids[np.argsort(centroids[:, 0]), :]
 
-    # discard outliers
-    # big_enough = all_areas > 0.4 * np.mean(all_areas)
-    # small_enough = all_areas > 0
-    # no_outliers = [x & y for (x, y) in zip(big_enough, small_enough)]
-    # all_centroids = all_centroids[no_outliers, :]
-    #
-    # all_areas = all_areas[no_outliers]
-
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
@@ -284,3 +313,30 @@ def find_cc_centroids_areas(img):
     return (cc_labels, cc_properties), all_centroids, all_areas
 
 
+def get_connected_components(img):
+    cc_labels = measure.label(img[:, :, 1], background=0)
+    cc_properties = measure.regionprops(cc_labels, cache=True)
+    return cc_labels, cc_properties
+
+
+def detect_outliers(area, mean, std):
+    # -------------------------------
+    start = time.time()
+    # -------------------------------
+    if mean is not None:
+        mean = np.mean(area)
+    if std is not None:
+        std = np.std(area)
+
+    no_outliers = abs(area - mean) < 5 * std
+
+    # small_enough = area < 3 * np.mean(area)
+    # small_enough = area > 0
+    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
+
+    # -------------------------------
+    stop = time.time()
+    logging.info("finished after: {diff} s".format(diff=stop - start))
+    # -------------------------------
+
+    return no_outliers

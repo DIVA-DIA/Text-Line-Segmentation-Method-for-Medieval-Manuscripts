@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 import numba
 
+import src.line_segmentation
+
 """
     Code from: https://github.com/danasilver/seam-carving/blob/master/seamcarve.py
     homepage: http://www.faculty.idc.ac.il/arik/SCWeb/imret/
@@ -73,13 +75,27 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
 
 @numba.jit()
-def draw_seam(img, seam, show=False):
-    # get the seam from the left [0] and the seam from the right[1]
-    split_seams = np.split(np.asarray(seam), 2)
-    cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
-    cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
-    if show:
-        cv2.imshow('seam', img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+def draw_seams(img, seams):
+    for seam in seams:
+        # Get the seam from the left [0] and the seam from the right[1]
+        split_seams = np.split(np.asarray(seam), 2)
+        cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
+        cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
 
+
+def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
+    # list with all seams
+    seams = []
+    # left most column of the energy map
+    left_column_energy_map = np.copy(ori_energy_map[:, 0])
+    # right most column of the energy map
+    right_column_energy_map = np.copy(ori_energy_map[:, -1])
+    # show_img(ori_enegery_map)
+    for seam_at in range(0, ori_energy_map.shape[0], seam_every_x_pxl):
+        energy_map = src.line_segmentation.preprocessing.energy_map.prepare_energy(ori_energy_map,
+                                                                                   left_column_energy_map,
+                                                                                   right_column_energy_map, seam_at)
+
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
+        seams.append(seam)
+    return seams
