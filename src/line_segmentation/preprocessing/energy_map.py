@@ -10,6 +10,9 @@ from skimage import measure
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 from src.line_segmentation.utils.util import calculate_asymmetric_distance
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 def create_heat_map_visualization(ori_energy_map):
     # -------------------------------
@@ -156,8 +159,6 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     if projection:
         projection_profile = create_projection_profile(energy_map)
-        # normalize it between 0-1
-        projection_profile = (projection_profile - np.min(projection_profile)) / (np.max(projection_profile) - np.min(projection_profile))
         # scale it between 0 and max(energy_map) / 2
         projection_profile *= np.max(energy_map) / 2
 
@@ -179,8 +180,92 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
 def create_projection_profile(energy_map):
     # creating the horizontal projection profile
-    projection_profile = np.sum(energy_map, axis=1)
-    return projection_profile
+    pp = np.sum(energy_map, axis=1)
+
+    plt.figure()
+    plt.plot(pp)
+    plt.savefig('./output/original.png')
+
+    # smoothing it
+    WINDOW_SIZE = 100
+    pp = smooth(pp, WINDOW_SIZE)[int(WINDOW_SIZE/2):-int(WINDOW_SIZE/2-1)]
+
+    plt.figure()
+    plt.plot(pp)
+    plt.savefig('./output/smoothed.png')
+
+    # wipe everything below average
+    pp -= np.mean(pp)
+    pp[pp < 0] = 0
+
+    plt.figure()
+    plt.plot(pp)
+    plt.savefig('./output/wiped.png')
+
+    # normalize it between 0-1
+    pp = (pp - np.min(pp)) / (np.max(pp) - np.min(pp))
+
+    plt.figure()
+    plt.plot(pp)
+    plt.savefig('./output/normalized.png')
+
+    return pp
+
+
+def smooth(x, window_len=11, window='hanning'):
+    """smooth the data using a window with requested size.
+
+    This method is based on the convolution of a scaled window with the signal.
+    The signal is prepared by introducing reflected copies of the signal
+    (with the window size) in both ends so that transient parts are minimized
+    in the begining and end part of the output signal.
+
+    input:
+        x: the input signal
+        window_len: the dimension of the smoothing window; should be an odd integer
+        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
+            flat window will produce a moving average smoothing.
+
+    output:
+        the smoothed signal
+
+    example:
+
+    t=linspace(-2,2,0.1)
+    x=sin(t)+randn(len(t))*0.1
+    y=smooth(x)
+
+    see also:
+
+    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
+    scipy.signal.lfilter
+
+    TODO: the window parameter could be the window itself if an array instead of a string
+    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+    """
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len < 3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s = np.r_[x[window_len - 1:0:-1], x, x[-2:-window_len - 1:-1]]
+    # print(len(s))
+    if window == 'flat':  # moving average
+        w = np.ones(window_len, 'd')
+    else:
+        w = eval('np.' + window + '(window_len)')
+
+    y = np.convolve(w / w.sum(), s, mode='valid')
+    return y
+
 
 
 def find_cc_centroids_areas(img):
