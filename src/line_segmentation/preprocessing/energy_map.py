@@ -8,7 +8,7 @@ from scipy.spatial import distance
 from skimage import measure
 
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
-from src.line_segmentation.utils.util import calculate_asymmetric_distance
+from src.line_segmentation.utils.util import calculate_asymmetric_distance, save_img
 
 
 def create_heat_map_visualization(ori_energy_map):
@@ -90,9 +90,6 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
-
-    # that the rest has not a high energy
-    distance_matrix[np.where(distance_matrix == 1)] = np.max(template)
 
     # distance_matrix = distance_matrix.reshape((centroids.shape[0], img_shape[0] * img_shape[1]))
     return distance_matrix.flatten()
