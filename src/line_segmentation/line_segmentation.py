@@ -251,7 +251,7 @@ if __name__ == "__main__":
     #                  nb_of_lives=0,
     #                  penalty_reduction=6000,
     #                  testing=True)
-    extract_textline(input_loc='./src/data/e-codices_csg-0018_095_max_output.png',
+    extract_textline(input_loc='./src/data/ICDAR/train-m/004533645_00059.png',
                      output_loc='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,
