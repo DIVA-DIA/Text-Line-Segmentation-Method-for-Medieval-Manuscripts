@@ -111,7 +111,7 @@ def init_logger(root_output_path, console_log):
 #######################################################################################################################
 if __name__ == "__main__":
 
-    extract_textline(input_path='./src/data/ICDAR/train-m/004533645_00059.png',
+    extract_textline(input_path='./../data/test/e-codices_fmb-cb-0055_0019r_max_output.png',
                      output_path='./output',
                      seam_every_x_pxl=90,
                      penalty_reduction=5000,

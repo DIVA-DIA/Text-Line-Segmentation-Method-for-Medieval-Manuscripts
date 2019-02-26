@@ -76,11 +76,19 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
 @numba.jit()
 def draw_seams(img, seams):
+    bidirectional = False
+    # get the first seam and check if the x coordinate at position len/2 is width or not
+    # because of integer we get first element of the right to left seam if there is one
+    if seams[0][int(len(seams[0])/2)][0] == img.shape[1] - 1:
+        bidirectional = True
     for seam in seams:
         # Get the seam from the left [0] and the seam from the right[1]
-        split_seams = np.split(np.asarray(seam), 2)
-        cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
-        cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
+        if bidirectional:
+            split_seams = np.split(np.asarray(seam), 2)
+            cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
+            cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
+        else:
+            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
 
 
 def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
