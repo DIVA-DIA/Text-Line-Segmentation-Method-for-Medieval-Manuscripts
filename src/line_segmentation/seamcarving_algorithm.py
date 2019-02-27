@@ -76,11 +76,11 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
 @numba.jit()
 def draw_seams(img, seams):
-    bidirectional = False
+    bidirectional = True
     # get the first seam and check if the x coordinate at position len/2 is width or not
     # because of integer we get first element of the right to left seam if there is one
-    if seams[0][int(len(seams[0])/2)][0] == img.shape[1] - 1:
-        bidirectional = True
+    if len(seams[0]) == img.shape[1]:
+        bidirectional = False
     for seam in seams:
         # Get the seam from the left [0] and the seam from the right[1]
         if bidirectional:
@@ -104,6 +104,6 @@ def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
                                                                                    left_column_energy_map,
                                                                                    right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=False)
         seams.append(seam)
     return seams
