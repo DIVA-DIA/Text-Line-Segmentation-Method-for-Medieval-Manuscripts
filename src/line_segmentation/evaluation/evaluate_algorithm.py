@@ -12,7 +12,6 @@ from multiprocessing import Pool, cpu_count
 from subprocess import Popen, PIPE, STDOUT
 from src.line_segmentation.evaluation.overall_score import write_stats
 from src.line_segmentation.line_segmentation import extract_textline
-from src.pixel_segmentation.evaluation.apply_postprocess import apply_preprocess
 
 VERTICAL = False
 
