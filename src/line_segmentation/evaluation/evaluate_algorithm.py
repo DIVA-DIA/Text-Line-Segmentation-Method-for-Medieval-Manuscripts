@@ -1,6 +1,7 @@
 import argparse
 import itertools
 import os
+import shutil
 import time
 import re
 import traceback
@@ -117,11 +118,23 @@ def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, 
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
+    else:
+        for the_file in os.listdir(output_path):
+            file_path = os.path.join(output_path, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(e)
 
     # Debugging purposes only!
     #input_images = [input_images[0]]
-    #gt_xml = [gt_xml[0]]
-    #gt_pxl = [gt_pxl[0]]
+    # gt_xml = [gt_xml[0], gt_xml[1], gt_xml[2], gt_xml[3]]
+    # gt_pxl = [gt_pxl[0], gt_pxl[1], gt_xml[2], gt_xml[3]]
+    # gt_xml = [gt_xml[0]]
+    # gt_pxl = [gt_pxl[0]]
 
     # For each file run
     param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl)
