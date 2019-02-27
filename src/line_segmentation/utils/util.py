@@ -1,3 +1,5 @@
+import shutil
+
 import cv2
 import os
 import numpy as np
@@ -5,7 +7,7 @@ import numpy as np
 
 def create_folder_structure(input_file, output_path, params):
     """
-    Creates the follwoing folder structure:
+    Creates the following folder structure:
     inputfilename_params
         - graph
         - histo
@@ -19,6 +21,16 @@ def create_folder_structure(input_file, output_path, params):
     # If the output_path does not exist (the output folder typically) then create it
     if not os.path.exists(output_path):
         os.mkdir(output_path)
+    else:
+        for the_file in os.listdir(output_path):
+            file_path = os.path.join(output_path, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(e)
 
     # basefolder
     basefolder_path = os.path.join(output_path, fileName + '_penalty_reduction_{}_seams_{}'.format(*params))
