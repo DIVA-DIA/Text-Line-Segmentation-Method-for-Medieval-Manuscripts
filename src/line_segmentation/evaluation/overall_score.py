@@ -31,7 +31,7 @@ def write_stats(path, errors):
 
 
 def _get_lines(folder, path):
-    csv_path = os.path.join(path, folder, 'results.csv')
+    csv_path = os.path.join(path, folder, 'polygons-results.csv')
     with open(csv_path) as csvfile:
         reader = csv.reader(csvfile)
         return list(reader)
