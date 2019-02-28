@@ -29,6 +29,8 @@ def preprocess(image):
     # Remove components which are too big in terms of area -> after removing the small ones!
     image = remove_big_components(image)
 
+    image[image > 255] = 255
+
     # -------------------------------
     stop = time.time()
     logging.info("finished after: {diff} s".format(diff=stop - start))
