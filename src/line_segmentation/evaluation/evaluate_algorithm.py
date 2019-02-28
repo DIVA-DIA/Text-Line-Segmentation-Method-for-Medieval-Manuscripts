@@ -74,10 +74,14 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
     # p = Popen(['ls'], stdout=PIPE, stderr=STDOUT)
     # logs = [line for line in p.stdout]
 
+    original_img_name = os.path.basename(gt_xml).replace('_gt.xml', '.jpg')
+    original_img_path = os.path.dirname(gt_xml).replace('private-page', 'private')
+
     print("Starting: JAR {} with {}".format(input_img, param_string))
     p = Popen(['java', '-jar', eval_tool,
                '-igt', gt_pxl,
                '-xgt', gt_xml,
+               '-overlap', os.path.join(original_img_path, original_img_name),
                '-xp', os.path.join(output_path, line_extraction_root_folder, 'polygons.xml'),
                '-csv'], stdout=PIPE, stderr=STDOUT)
     logs = [line for line in p.stdout]

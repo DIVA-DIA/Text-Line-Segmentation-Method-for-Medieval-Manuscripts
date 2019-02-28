@@ -104,6 +104,6 @@ def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
                                                                                    left_column_energy_map,
                                                                                    right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=False)
+        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
         seams.append(seam)
     return seams
