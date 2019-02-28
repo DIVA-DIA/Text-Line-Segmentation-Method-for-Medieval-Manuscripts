@@ -23,7 +23,7 @@ def get_polygons_from_lines(img, lines, connected_components, vertical):
             points = np.asarray([[point[1], point[0]] for point in points])
             cc_coords.append(points)
             # add the first contour point to the list s.t. the line will be connected
-            graph_nodes.append([points[0][1], points[0][0]])
+            graph_nodes.append(find_graph_node(cc.coords, cc.centroid))
 
         # create graph
         overlay_graph = createTINgraph(graph_nodes)
@@ -42,10 +42,31 @@ def get_polygons_from_lines(img, lines, connected_components, vertical):
         if vertical:
             polygon_img = cv2.rotate(polygon_img, cv2.ROTATE_90_CLOCKWISE)
 
+        # blurring the polygon image to close the gaps between the cut CCs
+        filter_size_H = 5
+        filter_size_V = 5
+        kernel = np.ones((filter_size_V, filter_size_H)) / filter_size_H
+        # Apply averaging filter
+        polygon_img = cv2.filter2D(polygon_img, -1, kernel)
+
         # get contour points of the binary polygon image
-        polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 254, fully_connected='high')[0])
+        polygon_coords.append(measure.find_contours(polygon_img[:, :, 0], 5, fully_connected='high')[0])
 
     return polygon_coords
+
+
+def find_graph_node(coords, centroid):
+    # cast centroid coordinates into int
+    centroid = np.asarray(centroid, dtype=int)
+
+    # if centroid is in the coords we return the centroid
+    if centroid in coords:
+        return centroid
+
+    # get the extreme points in coords on the same y as centroid
+    # extrem_points = coords[np.where(coords[:, 1] == centroid[1])]
+
+    return [coords[0][0], coords[0][1]]
 
 
 def find_cc_from_centroid(c, cc_properties):
