@@ -30,7 +30,10 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
     # the last point we visit
     previous = 0
     # the points of the seam
-    seam = []
+    # from left to right
+    seam_forward = []
+    # from right to left
+    seam_backward = []
 
     # spawns seams from left to right
     for i in range(0, width, 1):
@@ -49,7 +52,7 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
             previous = previous + np.argmin([top, middle, bottom]) - 1
 
-        seam.append([i, previous])
+        seam_forward.append([i, previous])
 
     # spawns seams from right to left
     if bidirectional:
@@ -69,26 +72,21 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
                 previous = previous + np.argmin([top, middle, bottom]) - 1
 
-            seam.append([i, previous])
+            seam_backward.append([i, previous])
 
-    return seam
+    return seam_forward, seam_backward
 
 
 @numba.jit()
 def draw_seams(img, seams):
-    bidirectional = True
     # get the first seam and check if the x coordinate at position len/2 is width or not
     # because of integer we get first element of the right to left seam if there is one
-    if len(seams[0]) == img.shape[1]:
-        bidirectional = False
     for seam in seams:
         # Get the seam from the left [0] and the seam from the right[1]
-        if bidirectional:
-            split_seams = np.split(np.asarray(seam), 2)
-            cv2.polylines(img, np.int32([np.asarray(split_seams[0])]), False, (0, 0, 0))
-            cv2.polylines(img, np.int32([np.asarray(split_seams[1])]), False, (255, 255, 255))
-        else:
+        if seam[0][0] == 0:
             cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
+        else:
+            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (255, 255, 255))
 
 
 def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
@@ -105,5 +103,6 @@ def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
                                                                                    right_column_energy_map, seam_at)
 
         seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
-        seams.append(seam)
+        seams.append(seam[0])
+        seams.append(seam[1])
     return seams

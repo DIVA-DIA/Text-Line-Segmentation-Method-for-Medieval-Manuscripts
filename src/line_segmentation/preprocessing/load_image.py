@@ -7,12 +7,21 @@ import time
 
 import numpy as np
 
+from PIL import Image
+
 
 def load_image(path):
     if not os.path.exists(path):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
-    img = cv2.imread(path)
+    if os.path.splitext(path)[1] == '.tif':
+        img = np.asarray(Image.open(path), dtype=int)
+        img[np.where(img == 0)] = 8
+        img[np.where(img == 1)] = 0
+        img = np.stack((img,)*3, axis=-1)
+    else:
+        img = cv2.imread(path)
+
     if img is None:
         raise Exception("Image is empty or corrupted", path)
 
