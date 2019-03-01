@@ -8,13 +8,14 @@ from src.line_segmentation.bin_algorithm import majority_voting
 from src.line_segmentation.polygon_manager import polygon_to_string, get_polygons_from_lines, draw_polygons
 from src.line_segmentation.preprocessing.load_image import prepare_image, load_image
 from src.line_segmentation.preprocessing.preprocess import preprocess
-from src.line_segmentation.seamcarving_algorithm import draw_seams, get_seams
+from src.line_segmentation.seamcarving_algorithm import draw_seams, get_seams, post_process_seams, draw_seams_red
 from src.line_segmentation.utils.XMLhandler import writePAGEfile
 from src.line_segmentation.utils.graph_logger import GraphLogger
 from src.line_segmentation.utils.util import create_folder_structure, save_img
 
 
 #######################################################################################################################
+
 
 def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every_x_pxl=5,
                      testing=False, vertical=False, console_log=False):
@@ -65,6 +66,11 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
     # Draw the seams on the heatmap
     draw_seams(heatmap, seams)
     save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_with_seams.png'))
+    # Post-process the seams
+    seams = post_process_seams(energy_map, seams)
+    # Draw the seams on the heatmap
+    draw_seams_red(heatmap, seams)
+    save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_postprocessed_seams.png'))
 
     ###############################################################################################
     # Extract the bins
@@ -117,6 +123,6 @@ if __name__ == "__main__":
                      penalty_reduction=5000,
                      testing=False,
                      console_log=True,
-                     vertical=True)
+                     vertical=False)
 
     logging.info('Terminated')

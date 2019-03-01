@@ -20,7 +20,7 @@ def majority_voting(connected_components, seams):
     centroids = centroids[np.argsort(centroids[:, 0]), :]
 
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
-    seams = np.array([np.array(s)[:, 1] for s in seams])
+    #seams = np.array([np.array(s)[:, 1] for s in seams])
 
     # for each centroid, compute how many seams are above it
     values = np.zeros([len(centroids)])

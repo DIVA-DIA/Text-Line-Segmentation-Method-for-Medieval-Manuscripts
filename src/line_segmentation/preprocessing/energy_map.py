@@ -126,13 +126,13 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     # distance_matrix[np.where(distance_matrix < 1)] = 1
 
     # scale down the distance
-    distance_matrix /= 15
+    distance_matrix /= 30
 
-    # make sure the distance is > 0
+    # make sure the distance is > 1
     distance_matrix += 1
 
     # We give all centroids the same energy (100)
-    energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 1000) / distance_matrix).transpose()
+    energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 100) / distance_matrix).transpose()
     # energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
     # energy_background = np.max(energy_background, axis=0)
     # get the text location
