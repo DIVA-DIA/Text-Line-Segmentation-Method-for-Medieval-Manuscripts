@@ -74,19 +74,19 @@ def horizontal_seam(energies, penalty_reduction, bidirectional=False):
 
             seam_backward.append([i, previous])
 
-    return seam_forward, seam_backward
+    return [seam_forward, seam_backward[::-1]]
 
 
 @numba.jit()
-def draw_seams(img, seams):
+def draw_seams(img, seams, bidirectional=True):
     # get the first seam and check if the x coordinate at position len/2 is width or not
     # because of integer we get first element of the right to left seam if there is one
-    for seam in seams:
+    for i, seam in enumerate(seams):
         # Get the seam from the left [0] and the seam from the right[1]
-        if seam[0][0] == 0:
-            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))
+        if bidirectional and i % 2 == 0:
+            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (0, 0, 0))  # Black
         else:
-            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (255, 255, 255))
+            cv2.polylines(img, np.int32([np.asarray(seam)]), False, (255, 255, 255))  # White
 
 
 def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
@@ -102,7 +102,5 @@ def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
                                                                                    left_column_energy_map,
                                                                                    right_column_energy_map, seam_at)
 
-        seam = horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True)
-        seams.append(seam[0])
-        seams.append(seam[1])
+        seams.extend(horizontal_seam(energy_map, penalty_reduction=penalty_reduction, bidirectional=True))
     return seams
