@@ -31,6 +31,8 @@ def majority_voting(connected_components, seams):
             # if the seam is below the centroid at the centroid X position
             if seam[cx] > cy:
                 values[i] = values[i] + 1
+            if seam[-cx] > cy:
+                values[i] = values[i] + 1
 
     small_bins = [42]
     while len(small_bins) > 0:

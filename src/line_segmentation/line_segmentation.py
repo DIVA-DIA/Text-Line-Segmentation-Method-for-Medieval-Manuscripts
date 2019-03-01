@@ -53,8 +53,8 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
     # Create the energy map
     energy_map, connected_components = src.line_segmentation.preprocessing.energy_map.create_energy_map(img,
                                                                                       blurring=False,
-                                                                                      projection=True,
-                                                                                      asymmetric=False)
+                                                                                      projection=False,
+                                                                                      asymmetric=True)
     # Visualize the energy map as heatmap
     heatmap = src.line_segmentation.preprocessing.energy_map.create_heat_map_visualization(energy_map)
     save_img(heatmap, path=os.path.join(root_output_path, 'energy_map', 'energy_map_without_seams.png'))

@@ -97,7 +97,7 @@ def wipe_outside_textarea(image):
     plt.axvline(x=right, color='r', linestyle='-')
     plt.savefig('./output/ver.png')
 
-    # FILTER WITH VERTICAL PROJECTION PROFILE ###########################################
+    # FILTER WITH HORIZONTAL PROJECTION PROFILE ###########################################
     # Compute projection profile
     hor = np.sum(SMOOTH_IMAGE, axis=1)
     # Get all values above average

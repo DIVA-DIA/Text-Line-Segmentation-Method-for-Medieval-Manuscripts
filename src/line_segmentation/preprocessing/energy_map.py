@@ -60,7 +60,7 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     # calculate distance template
     # TODO save template for speed up
     if asymmetric:
-        template = np.array([calculate_asymmetric_distance(center_template, pxl) for pxl in pixel_coordinates]) \
+        template = np.array([calculate_asymmetric_distance(center_template, pxl, 1, 5) for pxl in pixel_coordinates]) \
             .flatten().reshape((side_length, side_length))
     else:
         template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
@@ -132,7 +132,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     distance_matrix += 1
 
     # We give all centroids the same energy (100)
-    energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 100) / distance_matrix).transpose()
+    energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 1000) / distance_matrix).transpose()
     # energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
     # energy_background = np.max(energy_background, axis=0)
     # get the text location
@@ -290,7 +290,6 @@ def find_cc_centroids_areas(img):
 
     # Collect CC centroids
     all_centroids = np.asarray([cc.centroid[0:2] for cc in cc_properties])
-    all_centroids = all_centroids[np.argsort(all_centroids[:, 0]), :]
 
     # Collect CC sizes
     all_areas = np.asarray([cc.area for cc in cc_properties])
@@ -325,11 +324,8 @@ def detect_outliers(area, mean, std):
     if std is not None:
         std = np.std(area)
 
-    no_outliers = abs(area - mean) < 5 * std
-
-    # small_enough = area < 3 * np.mean(area)
-    # small_enough = area > 0
-    # no_y = abs(centroids - np.mean(centroids)) < 2 * np.std(centroids)
+    #no_outliers = abs(area - mean) < 3 * std
+    no_outliers = area - 0.25*mean > 0
 
     # -------------------------------
     stop = time.time()
