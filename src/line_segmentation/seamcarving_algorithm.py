@@ -128,45 +128,45 @@ def post_process_seams(energy_map, seams):
 
     # strip seams of x coordinate, which is totally useless as the x coordinate is basically the index in the array
     #seams = np.array([np.array(s)[:, 1] for s in seams])
+    for _ in range(10):
+        for index, seam_A in enumerate(seams):
+            for seam_B in seams[index:]:
+                # Compute seams overlap
+                overlap = seam_A - seam_B
+                # Find non-zero sequences
+                sequences = non_zero_runs(overlap)
 
-    for index, seam_A in enumerate(seams):
-        for seam_B in seams[index:]:
-            # Compute seams overlap
-            overlap = seam_A - seam_B
-            # Find non-zero sequences
-            sequences = non_zero_runs(overlap)
+                if len(sequences) > 1:
+                    for i, sequence in enumerate(sequences):
+                        # if sequence[0] == 0 or sequence[1] == len(seam_A):
+                        #     continue
+                        x = sequence[1] - sequence[0]
+                        if i > 0:
+                            if x > sequence[0] - sequences[i-1, 1]:
+                                continue
+                        else:
+                            if x > sequence[0]:
+                                continue
 
-            if len(sequences) > 1:
-                for i, sequence in enumerate(sequences):
-                    if sequence[0] == 0 or sequence[1] == len(seam_A):
-                        continue
-                    x = sequence[1] - sequence[0]
-                    if i > 0:
-                        if x > sequence[0] - sequences[i-1, 1]:
-                            continue
-                    else:
-                        if x > sequence[0]:
-                            continue
+                        if i < len(sequences)-1:
+                            if x > sequences[i+1, 0] - sequence[1]:
+                                continue
+                        else:
+                            if x > len(sequences) - sequence[1]:
+                                continue
 
-                    if i < len(sequences)-1:
-                        if x > sequences[i+1, 0] - sequence[1]:
-                            continue
-                    else:
-                        if x > len(sequences) - sequence[1]:
-                            continue
-
-                    # Expand the sequence into a range
-                    sequence = range(*sequence)
-                    # Compute the seam
-                    energy_A = measure_energy(energy_map, seam_A, sequence)
-                    energy_B = measure_energy(energy_map, seam_B, sequence)
-                    # Remove the weaker seam sequence
-                    if energy_A > energy_B:
-                        seam_A[sequence] = seam_B[sequence]
-                    else:
-                        seam_B[sequence] = seam_A[sequence]
-                # Break the pairwise loop
-                #break
+                        # Expand the sequence into a range
+                        sequence = range(*sequence)
+                        # Compute the seam
+                        energy_A = measure_energy(energy_map, seam_A, sequence)
+                        energy_B = measure_energy(energy_map, seam_B, sequence)
+                        # Remove the weaker seam sequence
+                        if energy_A > energy_B:
+                            seam_A[sequence] = seam_B[sequence]
+                        else:
+                            seam_B[sequence] = seam_A[sequence]
+                    # Break the pairwise loop
+                    #break
 
     return seams
 
