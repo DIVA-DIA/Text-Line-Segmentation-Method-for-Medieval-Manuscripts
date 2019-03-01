@@ -28,10 +28,8 @@ def majority_voting(connected_components, seams):
         cx = int(centroid[1])
         cy = int(centroid[0])
         for seam in seams:
-            # if the seam is below the centroid at the centroid X position
+            # if the seam is above the centroid at the centroid X position
             if seam[cx] > cy:
-                values[i] = values[i] + 1
-            if seam[-cx] > cy:
                 values[i] = values[i] + 1
 
     small_bins = [42]
@@ -42,7 +40,7 @@ def majority_voting(connected_components, seams):
 
         # look for outliers and merge them into bigger clusters
         if small_bins[0] == 42:
-            avg = np.mean(bin_size)*0.25
+            avg = np.mean(bin_size)*0.5
 
         # cluster which are too small
         small_bins = unique_bins[np.where(bin_size < avg)]
@@ -69,8 +67,8 @@ def majority_voting(connected_components, seams):
                 # compute distances to neighbors with the EUC distance
                 XA = np.expand_dims(centroids[loc], axis=0)
 
-                upper = np.array([calculate_asymmetric_distance(XA, c, 1, 10) for c in centroids[np.where(bin_index == bin_index[loc_p])]]).min()
-                lower = np.array([calculate_asymmetric_distance(XA, c, 1, 10) for c in centroids[np.where(bin_index == bin_index[loc_m])]]).min()
+                upper = np.array([calculate_asymmetric_distance(XA, c, 1, 5) for c in centroids[np.where(bin_index == bin_index[loc_p])]]).min()
+                lower = np.array([calculate_asymmetric_distance(XA, c, 1, 5) for c in centroids[np.where(bin_index == bin_index[loc_m])]]).min()
                 #upper = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_p])], 'euclidean').min()
                 #lower = distance.cdist(XA, centroids[np.where(bin_index == bin_index[loc_m])], 'euclidean').min()
 
