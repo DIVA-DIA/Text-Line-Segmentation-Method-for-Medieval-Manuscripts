@@ -60,7 +60,7 @@ def create_distance_matrix(img_shape, centroids, asymmetric=False, side_length=1
     # calculate distance template
     # TODO save template for speed up
     if asymmetric:
-        template = np.array([calculate_asymmetric_distance(center_template, pxl, 1, 5) for pxl in pixel_coordinates]) \
+        template = np.array([calculate_asymmetric_distance(center_template, pxl, 1, 10) for pxl in pixel_coordinates]) \
             .flatten().reshape((side_length, side_length))
     else:
         template = distance.cdist(center_template, pixel_coordinates).flatten().reshape((side_length, side_length))
