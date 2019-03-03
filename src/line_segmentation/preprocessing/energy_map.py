@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import time
 
@@ -7,6 +8,7 @@ import numpy as np
 from scipy.spatial import distance
 from skimage import measure
 
+import src
 from src.line_segmentation.utils.unused_but_keep_them import blur_image
 from src.line_segmentation.utils.util import calculate_asymmetric_distance, save_img
 
@@ -122,9 +124,6 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     # distance_matrix = distance.cdist(pixel_coordinates, centroids[0:10])
     distance_matrix = create_distance_matrix(img.shape[0:2], centroids, asymmetric=asymmetric)
 
-    # cap the distance to >= 1
-    # distance_matrix[np.where(distance_matrix < 1)] = 1
-
     # scale down the distance
     distance_matrix /= 30
 
@@ -133,17 +132,15 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     # We give all centroids the same energy (100)
     energy_background = ((np.ones(img.shape[0] * img.shape[1]) * 100) / distance_matrix).transpose()
-    # energy_background = ((np.ones(areas.shape) * 100) / distance_matrix).transpose()
-    # energy_background = np.max(energy_background, axis=0)
-    # get the text location
+
+    # Get the text location and assign it half the energy
     locs = np.array(np.where(img[:, :, 0].reshape(-1) == 0))[0:2, :]
     energy_text = energy_background / 2
     energy_text[locs] = 0
 
-    # optional to speed up the method (get all pixels which are in a certain distance of a centroid)
-    # get distance between each pixel and each centroid (because gravity)
     # sum up the received energy for each pixel
     energy_map = energy_background + energy_text
+    #energy_map = energy_background / 100000
     energy_map = energy_map.reshape(img.shape[0:2])
 
     if blurring:
@@ -163,6 +160,40 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
         # overlap it with the normal energy map and add the text energy
         energy_map = energy_map + projection_matrix + energy_text.reshape(img.shape[0:2])
+
+    if True:
+        filter_size_H = 4000
+        filter_size_V = 4000
+        kernel = np.zeros((filter_size_V, filter_size_H))
+        kernel[int(filter_size_V/2), :] = 1
+        kernel[:, int(filter_size_H/2)] = 1
+
+        # Apply projection filter
+        smoothed = cv2.filter2D(energy_map, -1, kernel)
+
+        # normalize it between 0-1
+        smoothed = (smoothed - np.min(smoothed)) / (np.max(smoothed) - np.min(smoothed))
+
+        filter_size_H = 32
+        filter_size_V = 32
+        kernel = np.ones((filter_size_V, filter_size_H)) / (filter_size_V*filter_size_H)
+        kernel[int(filter_size_V / 2), :] = 1
+        kernel[:, int(filter_size_H / 2)] = 1
+
+        # Apply projection filter
+        smoothed = cv2.filter2D(smoothed, -1, kernel)
+
+        # normalize it between 0-1
+        smoothed = (smoothed - np.min(smoothed)) / (np.max(smoothed) - np.min(smoothed))
+
+        # scale it between 0 and max(energy_map) / 2
+        smoothed *= np.max(energy_map)
+
+        # DEBUG
+        #heatmap = src.line_segmentation.preprocessing.energy_map.create_heat_map_visualization(smoothed)
+        #save_img(heatmap, path=os.path.join('./output/energy_map.png'))
+
+        energy_map = energy_map + smoothed + energy_text.reshape(img.shape[0:2])
 
     # -------------------------------
     stop = time.time()

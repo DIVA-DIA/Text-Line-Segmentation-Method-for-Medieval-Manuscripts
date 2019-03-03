@@ -25,7 +25,7 @@ if __name__ == '__main__':
     experiment = conn.experiments().create(
         name="Line Segmentation - bin - on raw - bidirectional",
         parameters=[
-            dict(name="penalty_reduction", type="int", bounds=dict(min=2500, max=13000)),
+            dict(name="penalty_reduction", type="int", bounds=dict(min=2000, max=13000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=10, max=100)),
         ],
         metrics=[dict(name="line IU")],

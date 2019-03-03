@@ -40,7 +40,7 @@ def majority_voting(connected_components, seams):
 
         # look for outliers and merge them into bigger clusters
         if small_bins[0] == 42:
-            avg = np.mean(bin_size)*0.4
+            avg = np.mean(bin_size)*0.25
 
         # cluster which are too small
         small_bins = unique_bins[np.where(bin_size < avg)]
