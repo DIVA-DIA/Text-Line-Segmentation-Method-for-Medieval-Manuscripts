@@ -163,8 +163,8 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     if True:
         # Cross-shaped kernel
-        filter_size_H = img.shape[0]*2
-        filter_size_V = img.shape[1]*2
+        filter_size_H = img.shape[0]
+        filter_size_V = img.shape[1]
         kernel = np.zeros((filter_size_V, filter_size_H))
         kernel[int(filter_size_V/2), :] = 1
         kernel[:, int(filter_size_H/2)] = 1
