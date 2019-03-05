@@ -126,8 +126,17 @@ def post_process_seams(energy_map, seams):
     # Check that the seams are as wide as the image
     assert energy_map.shape[1] == len(seams[0])
 
+    # TODO implement a tabu-list to prevent two seams to repeatedly swap a third seam between them
+    SAFETY_STOP = 100
+    iteration = 0
     repeat = True
     while repeat:
+
+        # Safety exit in case of endless loop meeting condition. See above.
+        iteration += 1
+        if iteration >= SAFETY_STOP:
+            break
+
         repeat = False
         for index, seam_A in enumerate(seams):
             for seam_B in seams[index:]:
