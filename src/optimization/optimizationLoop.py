@@ -2,7 +2,7 @@ from sigopt import Connection
 
 from src.line_segmentation.evaluation.evaluate_algorithm import evaluate
 
-#INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-m", "/dataset/CSG863/output-m"]
+INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-processed-m", "/dataset/CSG863/output2-processed-m"]
 #INPUT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
 GT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
 GT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
@@ -18,16 +18,16 @@ def evaluate_metric(assignments):
 
 if __name__ == '__main__':
     # Real Token
-    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    #conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    # conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="BullBear v0 - GT",
+        name="BullBear v0 - dev",
         parameters=[
-            dict(name="penalty_reduction", type="int", bounds=dict(min=500, max=13000)),
-            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=10, max=100)),
+            dict(name="penalty_reduction", type="int", bounds=dict(min=4000, max=6000)),
+            dict(name="seam_every_x_pxl", type="int", bounds=dict(min=70, max=100)),
         ],
         metrics=[dict(name="line IU")],
         observation_budget=30,
