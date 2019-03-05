@@ -52,7 +52,8 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
         print("Done: {} with {}".format(input_img, param_string))
     except:
         # for debugging
-        print("Failed for some reason")
+        print("Failed for some reason {} with exception: {}".format(input_img, traceback.format_exc()))
+
         return [None, traceback.format_exc(), param_list]
 
     line_extraction_root_folder = str(os.path.basename(input_img).split('.')[0] + param_string)
