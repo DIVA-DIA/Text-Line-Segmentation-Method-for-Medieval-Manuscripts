@@ -2,7 +2,8 @@ from sigopt import Connection
 
 from src.line_segmentation.evaluation.evaluate_algorithm import evaluate
 
-INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-m", "/dataset/CSG863/output-m"]
+#INPUT_FOLDERS_PXL = ["/dataset/CB55/output-m" , "/dataset/CSG18/output-m", "/dataset/CSG863/output-m"]
+#INPUT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
 GT_FOLDERS_XML = ["/dataset/CB55/private-page" , "/dataset/CSG18/private-page", "/dataset/CSG863/private-page"]
 GT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
 OUTPUT_FOLDER = "./output/"
@@ -23,9 +24,9 @@ if __name__ == '__main__':
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="Line Segmentation - bin - on raw - bidirectional",
+        name="BullBear v0 - GT",
         parameters=[
-            dict(name="penalty_reduction", type="int", bounds=dict(min=2000, max=13000)),
+            dict(name="penalty_reduction", type="int", bounds=dict(min=500, max=13000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=10, max=100)),
         ],
         metrics=[dict(name="line IU")],

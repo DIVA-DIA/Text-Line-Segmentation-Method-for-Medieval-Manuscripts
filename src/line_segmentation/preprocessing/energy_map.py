@@ -135,7 +135,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
 
     # Get the text location and assign it half the energy
     locs = np.array(np.where(img[:, :, 0].reshape(-1) == 0))[0:2, :]
-    energy_text = energy_background / 2
+    energy_text = energy_background
     energy_text[locs] = 0
 
     # sum up the received energy for each pixel
@@ -146,7 +146,7 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
     if blurring:
         # blur the map
         blurred_energy_map = blur_image(img=energy_map, filter_size=300)
-        energy_map = blurred_energy_map + energy_text.reshape(img.shape[0:2])
+        energy_map = blurred_energy_map
 
     if projection:
         projection_profile = create_projection_profile(energy_map)
@@ -159,41 +159,40 @@ def create_energy_map(img, blurring=True, projection=True, asymmetric=False):
         projection_matrix = blur_image(projection_matrix, filter_size=1000)
 
         # overlap it with the normal energy map and add the text energy
-        energy_map = energy_map + projection_matrix + energy_text.reshape(img.shape[0:2])
+        energy_map = energy_map + projection_matrix
 
     if True:
-        filter_size_H = 4000
-        filter_size_V = 4000
+        # Cross-shaped kernel
+        filter_size_H = img.shape[0]*2
+        filter_size_V = img.shape[1]*2
         kernel = np.zeros((filter_size_V, filter_size_H))
         kernel[int(filter_size_V/2), :] = 1
         kernel[:, int(filter_size_H/2)] = 1
 
-        # Apply projection filter
+        # Apply cross filter
         smoothed = cv2.filter2D(energy_map, -1, kernel)
 
-        # normalize it between 0-1
-        smoothed = (smoothed - np.min(smoothed)) / (np.max(smoothed) - np.min(smoothed))
-
+        # Smoothing kernel
         filter_size_H = 32
         filter_size_V = 32
         kernel = np.ones((filter_size_V, filter_size_H)) / (filter_size_V*filter_size_H)
-        kernel[int(filter_size_V / 2), :] = 1
-        kernel[:, int(filter_size_H / 2)] = 1
 
-        # Apply projection filter
+        # Apply smoothing filter
         smoothed = cv2.filter2D(smoothed, -1, kernel)
 
-        # normalize it between 0-1
-        smoothed = (smoothed - np.min(smoothed)) / (np.max(smoothed) - np.min(smoothed))
+        # Remove the mean and clip at 0
+        smoothed -= np.mean(smoothed)
+        smoothed[smoothed < 0] = 0
 
-        # scale it between 0 and max(energy_map) / 2
-        smoothed *= np.max(energy_map)
+        # Normalize it between 0 and max(energy_map)
+        smoothed = ((smoothed - np.min(smoothed)) * np.max(energy_map)) / (np.max(smoothed) - np.min(smoothed))
 
         # DEBUG
         #heatmap = src.line_segmentation.preprocessing.energy_map.create_heat_map_visualization(smoothed)
         #save_img(heatmap, path=os.path.join('./output/energy_map.png'))
 
-        energy_map = energy_map + smoothed + energy_text.reshape(img.shape[0:2])
+        # Add it to the energy map
+        energy_map = energy_map + smoothed
 
     # -------------------------------
     stop = time.time()

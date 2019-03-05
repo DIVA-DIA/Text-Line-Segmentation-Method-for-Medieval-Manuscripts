@@ -145,8 +145,7 @@ def post_process_seams(energy_map, seams):
 
                 if len(sequences) > 0:
                     for i, sequence in enumerate(sequences):
-                        # if sequence[0] == 0 or sequence[1] == len(seam_A):
-                        #     continue
+
                         target = sequence[1] - sequence[0]
 
                         left = sequence[0] - sequences[i - 1, 1] if i > 0 else sequence[0]
@@ -168,8 +167,6 @@ def post_process_seams(energy_map, seams):
                             seam_A[sequence] = seam_B[sequence]
                         else:
                             seam_B[sequence] = seam_A[sequence]
-                    # Break the pairwise loop
-                    #break
 
     return seams
 

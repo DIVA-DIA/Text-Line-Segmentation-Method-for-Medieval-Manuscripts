@@ -133,9 +133,9 @@ def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, 
                 print(e)
 
     # Debugging purposes only!
-    #input_images = [input_images[1]]
-    #gt_xml = [gt_xml[1]]
-    #gt_pxl = [gt_pxl[1]]
+    # input_images = [input_images[1]]
+    # gt_xml = [gt_xml[1]]
+    # gt_pxl = [gt_pxl[1]]
 
     # For each file run
     param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl)
@@ -162,7 +162,6 @@ def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, 
     else:
         score = -1
 
-    np.save(os.path.join(output_path, 'results.npy'), results)
     write_stats(output_path, errors)
     print('Total time taken: {:.2f}, avg_line_iu={}, nb_errors={}'.format(time.time() - tic, score, len(errors)))
     return score
