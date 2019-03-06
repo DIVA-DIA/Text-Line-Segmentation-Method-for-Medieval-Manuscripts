@@ -19,6 +19,8 @@ def load_image(path):
         img[np.where(img == 0)] = 8
         img[np.where(img == 1)] = 0
         img = np.stack((img,)*3, axis=-1)
+        img[:, :, 1] = 0
+        img[:, :, 2] = 0
     else:
         img = cv2.imread(path)
 
