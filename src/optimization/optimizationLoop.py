@@ -18,13 +18,13 @@ def evaluate_metric(assignments):
 
 if __name__ == '__main__':
     # Real Token
-    #conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
+    conn = Connection(client_token="YEQGRJZHNJMNHHZTDJIQKOXILQCSHZVFWWJIIWYNSWKQPGOA")
     # Dev Token
-    conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
+    #conn = Connection(client_token="UQOOVYGGZNNDDFUAQQCCGMVNLVATTXDFKTXFXWIYUGRMJQHW") # DEV!!!!!!!!!!!!!
     conn.set_api_url("https://api.sigopt.com")
 
     experiment = conn.experiments().create(
-        name="BullBear v0 - dev",
+        name="BullBear v1",
         parameters=[
             dict(name="penalty_reduction", type="int", bounds=dict(min=500, max=13000)),
             dict(name="seam_every_x_pxl", type="int", bounds=dict(min=30, max=100)),

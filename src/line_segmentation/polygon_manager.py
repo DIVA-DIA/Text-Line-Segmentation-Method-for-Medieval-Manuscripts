@@ -83,8 +83,7 @@ def draw_polygons(image, polygons, vertical):
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
 
     for polygon in polygons:
-        cv2.polylines(image, np.array([[[np.int(p[1]), np.int(p[0])] for p in polygon]]), 1,
-                      color=(248, 24, 148))
+        cv2.polylines(image, np.array([[[np.int(p[1]), np.int(p[0])] for p in polygon]]), 1, color=(248, 24, 148), thickness=3)
     return image
 
 
