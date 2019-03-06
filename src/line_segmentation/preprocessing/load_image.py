@@ -43,13 +43,25 @@ def prepare_image(img, testing, cropping=True, vertical=False):
             img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
     else:
-        # Erase green just in case
-        img[:, :, 1] = 0
+        ##################################################################
+        # Protect against malformed inputs
+
+        # Green channel should be empty
+        assert len(np.unique(img[:, :, 1])) == 1
+        assert np.unique(img[:, :, 1])[0] == 0
+
+        # Red channel should have at most two values: 0 and 128 for boundaries
+        assert len(np.unique(img[:, :, 2])) <= 2
+        assert np.unique(img[:, :, 2])[0] == 0
+        if len(np.unique(img[:, :, 2])) > 1:
+            assert np.unique(img[:, :, 2])[1] == 128
+
+        ##################################################################
+        # Prepare the image
+
         # Find and remove boundaries: this is necessary as they are marked with 8 in the blue channel as well
         locations = np.where(img == 128)
         img[locations[0], locations[1]] = 0
-        # Erase rest of the red just in case (cv2 open in BGR!)
-        img[:, :, 2] = 0
         # Find regular text and text + decoration
         locations_text = np.where(img == 8)
         locations_text_decoration = np.where(img == 12)
