@@ -43,8 +43,12 @@ def prepare_image(img, testing, cropping=True, vertical=False):
             img = img[np.min(locs[0, :]):np.max(locs[0, :]), np.min(locs[1, :]):np.max(locs[1, :])]
 
     else:
-        # Erase green and red just in case (cv2 open in BGR!)
+        # Erase green just in case
         img[:, :, 1] = 0
+        # Find and remove boundaries: this is necessary as they are marked with 8 in the blue channel as well
+        locations = np.where(img == 128)
+        img[locations[0], locations[1]] = 0
+        # Erase rest of the red just in case (cv2 open in BGR!)
         img[:, :, 2] = 0
         # Find regular text and text + decoration
         locations_text = np.where(img == 8)
