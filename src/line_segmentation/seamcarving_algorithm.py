@@ -1,11 +1,10 @@
-import logging
+import itertools
 import sys
-import time
 
 import cv2
-import numpy as np
 import numba
-import itertools
+import numpy as np
+
 import src.line_segmentation
 
 """
@@ -121,7 +120,6 @@ def get_seams(ori_energy_map, penalty_reduction, seam_every_x_pxl):
     return seams
 
 
-
 def post_process_seams(energy_map, seams):
     # Check that the seams are as wide as the image
     assert energy_map.shape[1] == len(seams[0])
@@ -178,6 +176,7 @@ def post_process_seams(energy_map, seams):
                             seam_B[sequence] = seam_A[sequence]
 
     return seams
+
 
 def non_zero_runs(a):
     """

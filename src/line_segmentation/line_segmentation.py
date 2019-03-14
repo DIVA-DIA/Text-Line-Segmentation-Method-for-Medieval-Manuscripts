@@ -4,8 +4,8 @@ import os
 import time
 
 import src.line_segmentation.preprocessing.energy_map
-from src.line_segmentation.bin_algorithm import majority_voting
-from src.line_segmentation.polygon_manager import polygon_to_string, get_polygons_from_lines, draw_polygons
+from src.line_segmentation.bin_algorithm import majority_voting, draw_bins
+from src.line_segmentation.polygon_manager import polygon_to_string, get_polygons_from_lines
 from src.line_segmentation.preprocessing.load_image import prepare_image, load_image
 from src.line_segmentation.preprocessing.preprocess import preprocess
 from src.line_segmentation.seamcarving_algorithm import draw_seams, get_seams, post_process_seams, draw_seams_red
@@ -74,13 +74,15 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
 
     ###############################################################################################
     # Extract the bins
-    lines = majority_voting(connected_components, seams)
+    lines, centroids, values = majority_voting(connected_components, seams)
 
+    # Draw the bins on a white gray image of the text with red seams
+    # draw_bins(img, centroids, root_output_path, seams, values)
     ###############################################################################################
     # Get polygons from lines
     polygons = get_polygons_from_lines(img, lines, connected_components, vertical)
     # Draw polygons overlay on original image
-    save_img(draw_polygons(img.copy(), polygons, vertical), path=os.path.join(root_output_path, 'polygons_on_text.png'))
+    # save_img(draw_polygons(img.copy(), polygons, vertical), path=os.path.join(root_output_path, 'polygons_on_text.png'))
 
     ###############################################################################################
     # Write the results on the XML file
@@ -115,6 +117,8 @@ def init_logger(root_output_path, console_log):
         logger.addHandler(stderr_handler)
 
 #######################################################################################################################
+
+
 if __name__ == "__main__":
 
     extract_textline(input_path='./src/data/e-codices_fmb-cb-0055_0145v_max_gt.png',
