@@ -1,11 +1,13 @@
 import itertools
 import logging
+import os
 import time
 
+import cv2
 import numpy as np
-from scipy.spatial import distance
 
-from src.line_segmentation.utils.util import calculate_asymmetric_distance
+from src.line_segmentation.seamcarving_algorithm import draw_seams_red
+from src.line_segmentation.utils.util import calculate_asymmetric_distance, save_img
 
 
 def majority_voting(connected_components, seams):
@@ -68,7 +70,7 @@ def majority_voting(connected_components, seams):
     logging.info("finished after: {diff} s".format(diff=stop - start))
     # -------------------------------
 
-    return lines
+    return lines, centroids, values
 
 
 def count_seams_below(centroids, seams):
@@ -147,3 +149,25 @@ def pairwise(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
     return zip(a, b)
+
+
+def draw_bins(img, centroids, root_output_path, seams, bins):
+    # create white image
+    binning_img = np.zeros(img.shape[0:2], dtype=np.uint8)
+    binning_img.fill(255)
+    # get text location
+    locs = np.array(np.where(img[:, :, 0].reshape(-1) != 0))[0:2, :]
+    binning_img = binning_img.flatten()
+    binning_img[locs] = 211
+    binning_img = binning_img.reshape(img.shape[0:2])
+    binning_img = np.stack((binning_img,) * 3, axis=-1)
+    # draw seams
+    draw_seams_red(binning_img, seams)
+    overlay_img = binning_img.copy()
+    # draw the centroids on the seam energy map
+    for centroid, value in zip(centroids, bins):
+        cv2.circle(overlay_img, (int(centroid[1]), int(centroid[0])), 25, (0, 255, 0), -1)
+        cv2.putText(binning_img, str(int(value)), (int(centroid[1]) - 16, int(centroid[0]) + 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.addWeighted(overlay_img, 0.4, binning_img, 0.6, 0, binning_img)
+    save_img(binning_img, path=os.path.join(root_output_path, 'energy_map', 'energy_map_bin_expl.png'))
