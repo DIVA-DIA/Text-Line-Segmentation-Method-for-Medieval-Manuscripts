@@ -73,4 +73,5 @@ target/
 .ipynb_checkpoints/
 
 # exclude data from source control by default
-/data/
+src/data/
+output/
