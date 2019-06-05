@@ -21,6 +21,7 @@ def preprocess(image, small_component_ratio):
     # -------------------------------
 
     # find the text area and wipe the rest
+    # TODO Hock back in if not working with asian chars
     # image = wipe_outside_textarea(image)
 
     # Remove components which are too small in terms of area
