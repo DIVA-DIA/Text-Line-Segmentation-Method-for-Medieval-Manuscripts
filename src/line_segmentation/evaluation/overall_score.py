@@ -29,7 +29,10 @@ def write_stats(path, errors):
 
     with open(os.path.join(path, 'error_log.txt'), 'w') as f:
         for error in errors:
-            f.writelines([line.decode('ascii') for line in error[1]])
+            if type(error[1]) == str:
+                f.writelines(error[1])
+            else:
+                f.writelines([line.decode('ascii') for line in error[1]])
             f.write("\n--------------------------------------------------\n\n")
 
 

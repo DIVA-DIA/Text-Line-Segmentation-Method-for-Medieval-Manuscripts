@@ -41,9 +41,10 @@ def get_score(logs, token):
 
 
 def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_tool):
-    param_string = "_penalty_reduction_{}_seams_{}".format(
+    param_string = "_penalty_reduction_{}_seams_{}_component_ratio_{}".format(
         param_list['penalty_reduction'],
-        param_list['seam_every_x_pxl'])
+        param_list['seam_every_x_pxl'],
+        param_list['small_component_ratio'])
 
     print("Starting: {} with {}".format(input_img, param_string))
     # Run the tool
@@ -91,7 +92,7 @@ def compute_for_all(input_img, gt_xml, gt_pxl, output_path, param_list, eval_too
 
 
 def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, eval_tool,
-             penalty_reduction, seam_every_x_pxl, **kwargs):
+             penalty_reduction, seam_every_x_pxl, small_component_ratio, **kwargs):
 
     # Select the number of threads
     if j == 0:
@@ -116,9 +117,10 @@ def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, 
 
     # Create output path for run
     tic = time.time()
-    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}'.format(
+    output_path = os.path.join(output_path, 'penalty_reduction_{}_seams_{}_component_ratio_{}'.format(
         penalty_reduction,
-        seam_every_x_pxl))
+        seam_every_x_pxl,
+        small_component_ratio))
 
     if not os.path.exists(output_path):
         os.makedirs(os.path.join(output_path))
@@ -139,7 +141,9 @@ def evaluate(input_folders_pxl, gt_folders_xml, gt_folders_pxl, output_path, j, 
     # gt_pxl = [gt_pxl[1]]
 
     # For each file run
-    param_list = dict(penalty_reduction=penalty_reduction, seam_every_x_pxl=seam_every_x_pxl)
+    param_list = dict(penalty_reduction=penalty_reduction,
+                      seam_every_x_pxl=seam_every_x_pxl,
+                      small_component_ratio=small_component_ratio)
     results = list(pool.starmap(compute_for_all, zip(input_images,
                                                 gt_xml,
                                                 gt_pxl,
@@ -189,6 +193,10 @@ if __name__ == "__main__":
     parser.add_argument('--penalty-reduction', type=int,
                         required=True,
                         help='path to store output files')
+    parser.add_argument('--small-component-ratio', type=float,
+                        required=True,
+                        help='The percentage a connected component needs to be considered.'
+                             ' If he is smaller then x * avg_area it will get deleted from the list of CC')
     parser.add_argument('--seam-every-x-pxl', type=int,
                         required=True,
                         help='how many pixels between the seams')

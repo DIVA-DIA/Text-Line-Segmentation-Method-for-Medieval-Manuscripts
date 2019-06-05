@@ -59,12 +59,19 @@ def createTINgraph(points):
 
     # make a graph based on the Delaunay triangulation edges
     graph = nx.Graph()
-    graph.add_weighted_edges_from(list(edges))
+    graph.add_weighted_edges_from(edges)
 
     original_nodes = points
+    assert len(original_nodes) == graph.number_of_nodes()
+
+    # create attribute dict
+    attributes = {}
     for n in range(len(original_nodes)):
         XY = original_nodes[n]  # X and Y tuple - coordinates of the original points
-        graph.node[n]['XY'] = [XY[1], XY[0]]
+        attributes[n] = [XY[1], XY[0]]
+
+    # add attributes to graph
+    nx.set_node_attributes(graph, attributes, 'XY')
 
     # -------------------------------
     stop = time.time()

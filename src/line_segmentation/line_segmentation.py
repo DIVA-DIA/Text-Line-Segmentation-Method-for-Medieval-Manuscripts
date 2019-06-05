@@ -18,7 +18,7 @@ from src.line_segmentation.utils.util import create_folder_structure, save_img
 
 
 def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every_x_pxl=5,
-                     testing=False, vertical=False, console_log=False):
+                     testing=False, vertical=False, console_log=False, small_component_ratio=0.1):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     """
@@ -33,7 +33,7 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
 
     ###############################################################################################
     # Creating the folders and getting the new root folder
-    root_output_path = create_folder_structure(input_path, output_path, (penalty_reduction, seam_every_x_pxl))
+    root_output_path = create_folder_structure(input_path, output_path, (penalty_reduction, seam_every_x_pxl, small_component_ratio))
 
     # Init the logger with the logging path
     init_logger(root_output_path, console_log)
@@ -47,7 +47,7 @@ def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every
     img = prepare_image(img, testing=testing, cropping=False, vertical=vertical)
     # Pre-process the image
     save_img(img, path=os.path.join(root_output_path, 'preprocess', 'original.png'))
-    img = preprocess(img)
+    img = preprocess(img, small_component_ratio)
     save_img(img, path=os.path.join(root_output_path, 'preprocess', 'after_preprocessing.png'))
 
     ###############################################################################################

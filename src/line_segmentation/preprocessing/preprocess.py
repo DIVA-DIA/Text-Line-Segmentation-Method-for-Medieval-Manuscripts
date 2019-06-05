@@ -15,16 +15,16 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 
-def preprocess(image):
+def preprocess(image, small_component_ratio):
     # -------------------------------
     start = time.time()
     # -------------------------------
 
     # find the text area and wipe the rest
-    image = wipe_outside_textarea(image)
+    # image = wipe_outside_textarea(image)
 
     # Remove components which are too small in terms of area
-    image = remove_small_components(image)
+    image = remove_small_components(image, small_component_ratio)
 
     # Remove components which are too big in terms of area -> after removing the small ones!
     image = remove_big_components(image)
@@ -122,7 +122,7 @@ def wipe_outside_textarea(image):
     return image
 
 
-def remove_small_components(image):
+def remove_small_components(image, small_component_ratio):
     # Find CC
     cc_properties = measure.regionprops(measure.label(image[:, :, 1], background=0), cache=True)
 
@@ -131,7 +131,7 @@ def remove_small_components(image):
 
     # Remove all small components
     for cc in cc_properties:
-        if cc.area < 0.1 * avg_area:
+        if cc.area < small_component_ratio * avg_area:
             # Wipe the cc
             image[(cc.coords[:, 0], cc.coords[:, 1])] = 0
     return image

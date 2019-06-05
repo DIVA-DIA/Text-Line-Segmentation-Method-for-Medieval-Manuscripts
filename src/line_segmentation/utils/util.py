@@ -23,7 +23,7 @@ def create_folder_structure(input_file, output_path, params):
         os.mkdir(output_path)
 
     # basefolder
-    basefolder_path = os.path.join(output_path, fileName + '_penalty_reduction_{}_seams_{}'.format(*params))
+    basefolder_path = os.path.join(output_path, fileName + '_penalty_reduction_{}_seams_{}_component_ratio_{}'.format(*params))
     # create basefolder
     if not os.path.exists(basefolder_path):
         os.mkdir(basefolder_path)

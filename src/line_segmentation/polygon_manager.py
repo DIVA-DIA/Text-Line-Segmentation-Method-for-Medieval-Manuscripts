@@ -26,7 +26,7 @@ def get_polygons_from_lines(img, lines, connected_components, vertical):
             graph_nodes.append(find_graph_node(cc.coords, cc.centroid))
 
         # create graph
-        overlay_graph = createTINgraph(graph_nodes)
+        overlay_graph = createTINgraph(np.array(list(set(tuple(p) for p in graph_nodes))))
 
         # create mst
         overlay_graph = nx.minimum_spanning_tree(overlay_graph)
