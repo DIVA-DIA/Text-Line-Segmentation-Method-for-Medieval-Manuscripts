@@ -1,4 +1,4 @@
-# image text segmentation
+# Text Line Segmentation Method for Medieval Manuscripts
 Image and Text Segmentation pipeline for ICDAR2019
 
 ## Getting started
@@ -6,7 +6,7 @@ Image and Text Segmentation pipeline for ICDAR2019
 In order to get the pipeline up and running it is only necessary to clone the latest version of the repository:
 
 ``` shell
-https://github.com/lvoegtlin/image_text_segmentation
+git clone https://github.com/DIVA-DIA/Text-Line-Segmentation-Method-for-Medieval-Manuscripts
 ```
 
 Run the install the conda environment:
