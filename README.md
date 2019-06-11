@@ -23,7 +23,7 @@ If you use our software, please cite our paper as:
 ``` latex
 @inproceedings{alberti2019linesegmentaton,
     address = {Sydney, Australia},
-    author = {Alberti, Michele and Voe{\"o}gtlin, Lars and  Pondenkandath, Vinaychandran and Seuret, Mathias and Ingold, Rolf and Liwicki, Marcus},
+    author = {Alberti, Michele and Voegtlin, Lars and  Pondenkandath, Vinaychandran and Seuret, Mathias and Ingold, Rolf and Liwicki, Marcus},
     title = {{Labeling, Cutting, Grouping: an Efficient Text Line Segmentation Method for Medieval Manuscripts}},
     booktitle = {2019 15th IAPR International Conference on Document Analysis and Recognition (ICDAR)},
     year = {2019},
