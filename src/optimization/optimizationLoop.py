@@ -2,10 +2,10 @@ from sigopt import Connection
 
 from src.line_segmentation.evaluation.evaluate_algorithm import evaluate
 
-INPUT_FOLDERS_PXL = ["/dataset/Vietnamese/pxl_column_gt_diva"]
+INPUT_FOLDERS_PXL = ["/dataset/Vietnamese/test/gt"]
 #INPUT_FOLDERS_PXL = ["/dataset/CB55/private-m" , "/dataset/CSG18/private-m", "/dataset/CSG863/private-m"]
-GT_FOLDERS_XML = ["/dataset/Vietnamese/xml_column_gt"]
-GT_FOLDERS_PXL = ["/dataset/Vietnamese/pxl_column_gt_diva"]
+GT_FOLDERS_XML = ["/dataset/Vietnamese/test/xml"]
+GT_FOLDERS_PXL = ["/dataset/Vietnamese/test/gt"]
 OUTPUT_FOLDER = "./output/"
 NUM_CORES = 0
 EVAL_TOOL = "./src/line_segmentation/evaluation/LineSegmentationEvaluator.jar"

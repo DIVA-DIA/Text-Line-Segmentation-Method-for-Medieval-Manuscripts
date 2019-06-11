@@ -9,7 +9,6 @@ from subprocess import Popen, PIPE, STDOUT
 import numpy as np
 
 from src.line_segmentation.evaluation.evaluate_algorithm import get_file_list
-from src.line_segmentation.evaluation.overall_score import write_stats
 
 
 def get_score(logs):
