@@ -1,5 +1,7 @@
+**&rarr; Link to paper: [https://arxiv.org/abs/1906.11894](https://arxiv.org/abs/1906.11894)**
+
 # Text Line Segmentation Method for Medieval Manuscripts
-Image and Text Segmentation pipeline for the paper  ["Labeling, Cutting, Grouping: an Efficient Text Line Segmentation Method for Medieval Manuscripts"](https://arxiv.org/user/), published at the 15th IAPR International Conference on Document Analysis and Recognition (ICDAR) in 2019.
+Image and Text Segmentation pipeline for the paper ["Labeling, Cutting, Grouping: an Efficient Text Line Segmentation Method for Medieval Manuscripts"](https://arxiv.org/abs/1906.11894), published at the 15th IAPR International Conference on Document Analysis and Recognition (ICDAR) in 2019.
 
 ## Getting started
 
