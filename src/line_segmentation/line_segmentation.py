@@ -2,6 +2,7 @@
 import logging
 import os
 import time
+import argparse
 
 import src.line_segmentation.preprocessing.energy_map
 from src.line_segmentation.bin_algorithm import majority_voting, draw_bins
@@ -121,12 +122,19 @@ def init_logger(root_output_path, console_log):
 
 if __name__ == "__main__":
 
-    extract_textline(input_path='./src/data/e-codices_fmb-cb-0055_0145v_max_gt.png',
-                     output_path='./output',
-                     seam_every_x_pxl=100,
-                     penalty_reduction=6000,
-                     testing=False,
-                     console_log=True,
-                     vertical=False)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input-path', type=str, default='./src/data/test1.png', help='Path to the input file')
+    parser.add_argument('--output-path', type=str, default='./output', help='Path to the output folder')
+    parser.add_argument('--seam-every-x-pxl', type=int, default=100, help='After how many pixel a new seam should be'
+                                                                          ' casted')
+    parser.add_argument('--penalty_reduction', type=int, default=6000, help='Punishment reduction for the seam'
+                                                                            ' leaving the y axis')
+    parser.add_argument('--testing', type=bool, default=True, help='Are you running on a testing file provided bz us?')
+    parser.add_argument('--console_log', type=bool, default=True, help='Console logging')
+    parser.add_argument('--vertical', type=bool, default=False, help='Is the text orientation vertical?')
+
+    args = parser.parse_args()
+
+    extract_textline(**args.__dict__)
 
     logging.info('Terminated')
