@@ -17,6 +17,11 @@ Run the install the conda environment:
 conda env create -f environment.yml
 ```
 
+and activate the environment:
+```
+conda actiavte image_text_segmentation
+```
+
 ## First run
 To see if the code works properly you can call the algorithm from the root folder with the following command
 ```
