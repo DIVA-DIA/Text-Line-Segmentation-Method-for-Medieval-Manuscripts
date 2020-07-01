@@ -48,7 +48,7 @@ optional arguments:
 ```
 
 ## Running on own images
-If you want to run the algorithm on need to segment the images beforehand.
+If you want to run the algorithm on your own images you need to perform pixel-vise semantic segmentation beforehand s.t. every pixel has a class label.
 This segmented image is then the input for the algorithm. The format of the image *needs* to be as described [here](#Ground-Truth-Format)
 
 Then you can either run it on a single file as described [above](#First-run) or you can run it on a folder of files including evaluation of the algorithm.
