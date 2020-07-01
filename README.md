@@ -19,7 +19,7 @@ conda env create -f environment.yml
 
 and activate the environment:
 ```
-conda actiavte image_text_segmentation
+conda activate image_text_segmentation
 ```
 
 ## First run
