@@ -18,8 +18,8 @@ from src.line_segmentation.utils.util import create_folder_structure, save_img
 #######################################################################################################################
 
 
-def extract_textline(input_path, output_path, penalty_reduction=3000, seam_every_x_pxl=5,
-                     testing=False, vertical=False, console_log=False, small_component_ratio=0.1):
+def extract_textline(input_path: str, output_path: str, penalty_reduction: int, seam_every_x_pxl: int,
+                     testing: bool, vertical: bool, console_log: bool, small_component_ratio: float):
     """
     Function to compute the text lines from a segmented image. This is the main routine where the magic happens
     """
@@ -129,9 +129,10 @@ if __name__ == "__main__":
                                                                           ' casted')
     parser.add_argument('--penalty_reduction', type=int, default=6000, help='Punishment reduction for the seam'
                                                                             ' leaving the y axis')
-    parser.add_argument('--testing', type=bool, default=True, help='Are you running on a testing file provided bz us?')
-    parser.add_argument('--console_log', type=bool, default=True, help='Console logging')
-    parser.add_argument('--vertical', type=bool, default=False, help='Is the text orientation vertical?')
+    parser.add_argument('--small_component_ratio', type=float, default=0.1, help='Ratio of the small components')
+    parser.add_argument('--testing', action='store_true', help='Are you running on a testing file provided bz us?')
+    parser.add_argument('--console_log', action='store_false', help='Deactivate console logging')
+    parser.add_argument('--vertical', action='store_true', help='Is the text orientation vertical?')
 
     args = parser.parse_args()
 
