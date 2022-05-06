@@ -41,10 +41,12 @@ optional arguments:
                         After how many pixel a new seam should be casted
   --penalty_reduction PENALTY_REDUCTION
                         Punishment reduction for the seam leaving the y axis
-  --testing TESTING     Are you running on a testing file provided bz us?
-  --console_log CONSOLE_LOG
-                        Console logging
-  --vertical VERTICAL   Is the text orientation vertical?
+  --small_component_ratio SMALL_COMPONENT_RATIO
+                        Ratio of the small components
+  --testing             Are you running on a testing file provided bz us?
+  --console_log         Deactivate console logging
+  --vertical            Is the text orientation vertical?
+
 ```
 
 ## Running on own images
