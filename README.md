@@ -25,7 +25,7 @@ conda activate image_text_segmentation
 ## First run
 To see if the code works properly you can call the algorithm from the root folder with the following command
 ```
-python python src/line_segmentation/line_segmentation.py
+python src/line_segmentation/line_segmentation.py --testing
 ```
 This will run the code on the image *test1.png* from the folder ```src/data/```.
 
